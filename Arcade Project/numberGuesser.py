@@ -1,14 +1,9 @@
 # Number Guessing Game
 
 import random as r, math as m
-
-# Color abbreviations
-X = '\x1b[0m'
-def col(i): return f'\x1b[1;{i}m'
+from common import X, col
 
 # Welcome
-cred = 500 # Start with 500 credits
-minc, maxc, won, lost = 500, 500, 0, 0 # For stats later
 bar = [f'{col(32)}■'] * 3 + [f'{col(33)}■'] * 3 + [f'{col(31)}■'] * 3 # Difficulty bar
 print(f'{col(31)}Welcome to the casino!\n{X}')
 

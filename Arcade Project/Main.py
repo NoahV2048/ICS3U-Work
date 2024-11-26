@@ -4,13 +4,13 @@
 # Last edited: Nov. 26, 2024
 
 import numberGuesser, hangman
+from common import X, col
 
 
 # Init & Welcome
 
 creds = 500
-
-print(f'{col(31)}Welcome to the Arcade!')
+print(f'{col(31)}Welcome to the Arcade!\n{X}')
 
 
 # Establish Stats
@@ -20,7 +20,6 @@ class Game_stats: # unique to each game
         self.games_won, self.game_lost = 0, 0
 
 min_creds, max_creds = 500, 500 # global stats
-
 numberGuesser_stats = Game_stats
 
 
