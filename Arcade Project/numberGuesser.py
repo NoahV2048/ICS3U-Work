@@ -49,7 +49,7 @@ while True:
 print(f"{col(31)}\nLet's go gambling!{X}\n")
 
 # Main loop
-while True:
+def play():
     rand = r.randint(low, upp)
     guesses = log // 10 # Guesses = # of times you can effectively halve the range
 
@@ -104,40 +104,6 @@ The correct number was {col(95)}{rand}{X}.\n')
             cred -= bet
             lost += 1
             break
-
-    if cred > maxc: # For stats later
-        maxc = cred
-    elif cred < minc:
-        minc = cred
-
-    # Replay
-    if cred > 0:
-        # y/n validation loop
-        rep = None
-        while rep not in ('y', 'n'):
-            rep = input('Would you like to play again (y/n)? ').strip().lower()
-        if rep == 'n':
-            break
-        else:
-            print()
-    else: # Game over
-        print(f'{col(31)}Sorry, you ran out of credits. Game over!{X}')
-        break
-
-print(f'\n{col(32)}Thank you for playing!{X}')
-print(f'Your final balance is {col(36)}{cred:,}{X} credit{"s" * (cred != 1)}.')
-
-# Stats
-print(f'''\n{col(36)}Stats:{X}
-Number Range: {col(35)}{low:,}{X} to {col(35)}{upp:,}{X}
-Range {statdiff}
-
-Rounds Played: {col(33)}{won + lost}{X}
-Wins-Losses: {col(32)}{won}{X}-{col(31)}{lost}{X}
-Win Rate: {col(33)}{100 * won / (won + lost):.1f}%{X}
-
-Max Credits: {col(32)}{maxc:,}{X}
-Min Credits: {col(31)}{minc}{X}''')
 
 def play(creds: int):
     creds += 1
