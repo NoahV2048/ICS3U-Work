@@ -20,10 +20,15 @@ def display_dice():
     for i in dice:
         print(dice_map[i], end=' ')
 
+def score_card():
+    print()
+
 # Main Game
 
 def play(creds, bet):
-    print(f'{col(32)}Playing Yahtzee...{X}')
+    print(f'{col(32)}Playing Yahtzee...\n{X}')
+
+
 
     while True:
         dice = roll()

@@ -116,7 +116,7 @@ while True:
         else:
             break
 
-    else: # game over
+    else: # game over perhaps
         print(f'{col(31)}Sorry, you ran out of credits!{X}')
         one_cred = yn_validate('Okay, would you like 1 credit to keep going (y/n)? ')
 
