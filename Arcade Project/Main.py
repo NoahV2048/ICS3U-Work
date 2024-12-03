@@ -3,63 +3,61 @@
 # Noah Verdon
 # Last edited: Dec. 3, 2024
 
-# Import numberGuesser, hangman
-from common import X, col, pl, border
+import time as t
+import numberGuesser, hangman, yazy
+from common import X, col, cred_msg, border
 
 
 # Welcome & Init
 
 border('WELCOME TO THE ARCADE!', 31)
-creds = 500
-games = ['Number Guesser', 'Hangman', 'Other TBD', 'Quit']
+creds = 1000
+c = creds
+games = ['Number Guesser', 'Hangman', 'Yahtzee', 'Settings', 'Quit']
 
 class Game_stats: # stats unique to each game
     def __init__(self):
         self.won, self.lost = 0, 0
 
 min_creds, max_creds = 500, 500 # global stats
-num_stats, hang_stats, TBD_stats = (Game_stats(),) * 3
-short_games = [num_stats, hang_stats, TBD_stats]
+num_stats, hang_stats, yazy_stats = (Game_stats(),) * 3
+short_games = [num_stats, hang_stats, yazy_stats]
 
 
 # Establish Functions
 
-def cred_msg() -> str: # credit message function
-    return f'{col(36)}{creds}{X} credit{pl(creds, 0)}.'
-
 def game_select() -> int:
     '''Game selection.'''
-    print(f'''{col(32)}Game Selection:{X}
-1. Number Guesser
-2. Hangman
-3. Other
-4. Quit\n''')
+    print(f'{col(32)}Game Selection:{X}')
+    for i, item in enumerate(games, start=1):
+        print(f'{i}. {item}')
+    print()
+    t.sleep(0.25)
     while True:
         game = input('Which game would you like to play? ')
         if game.isdecimal():
-            if 1 <= (game := int(game)) <= 4:
+            if 1 <= (game := int(game)) <= 5:
                 break
     return game - 1
 
 def get_bet():
     '''Bet validation loop.'''
     while True:
-        print(f'You have {col(36)}{creds:,}{X} credit{"s" * (creds != 1)}.')
-        bet = input('How many would you like to bet? ')
-        if not bet.isdecimal():
-            print(f'Invalid bet (not an integer >= 0).')
-        elif int(bet) == 0:
-            print(f'Invalid bet (you have to bet something!).')
-        elif not 1 <= int(bet) <= creds:
-            print(f'Invalid bet (insufficient funds).')
-        else:
+        print(f'You have {cred_msg(c)} ', end='')
+        bet = input('How many would you like to bet? ').strip()
+        if bet.isdecimal():
             bet = int(bet)
-            break
-
-    if bet == creds: # All in
-        print(f"{col(31)}Woah, you're all in!{X}")
+            if bet == 0:
+                print(f'\x1b[31mYou have to bet something!{X}')
+            elif not 1 <= bet <= creds:
+                print(f'\x1b[31mInsufficient funds.{X}')
+            else:
+                break
+        else:
+            print(f'\x1b[31mInvalid bet.{X}')
     
-    print()
+    if bet == creds: # all in
+        print(f"{col(31)}Woah, you're all in!{X}")
     return bet
 
 def game_stats(i):
@@ -79,31 +77,39 @@ def yn_validate(msg: str):
     yn = None
     while yn not in ('y', 'n'):
         yn = input(msg).strip().lower()
-    return ('y', 'n').index(yn)
+    return ('n', 'y').index(yn)
+
+def settings():
+    pass
 
 
 # Main Loop
 
+t.sleep(0.5)
 while True:
     game = game_select()
     
-    if game == 3:
+    if game == 4:
+        print('You selected: Quit\n')
         break
+    elif game == 3:
+        print('You selected: Settings\n')
+        settings()
+        continue
 
-    print(f'\nYou have chosen {games[game]}.')
+    print(f'You have chosen {col(33)}{games[game]}.{X}\n')
     bet = get_bet()
 
-    #[numberGuesser, hangman][game].play()
-    creds += 1
+    creds = [numberGuesser, hangman][game].play(creds, bet)
 
-    if creds > maxc: # for stats later
-        maxc = creds
-    elif creds < minc:
-        minc = creds
+    if creds > max_creds: # for stats
+        max_creds = creds
+    elif creds < min_creds:
+        min_creds = creds
 
     # Replay
     if creds > 0:
-        print(f'You have {cred_msg}')
+        print(f'You have {cred_msg(c)}')
         rep = yn_validate('Would you like to play again (y/n)? ')
         if rep:
             print()
@@ -123,15 +129,19 @@ while True:
 
 # End & Stats
 
-print(f'\n{col(32)}Thank you for playing!{X}')
-print(f'Your final balance is {cred_msg()}\n')
+print(f'{col(32)}Thank you for playing!{X}')
+print(f'Your final balance is {cred_msg(c)}\n')
+t.sleep(0.75)
 border('ARCADE STATS', 36)
+t.sleep(0.5)
 
 print(f'''{col(36)}Global:{X}
 Max Credits: {col(32)}{max_creds:,}{X}
 Min Credits: {col(31)}{min_creds:,}{X}\n''')
+t.sleep(0.25)
 
 for i in range(3):
     game_stats(i)
+    t.sleep(0.25)
 
 border('COME BACK SOON!', 31)

@@ -4,49 +4,50 @@ import random as r, math as m
 from common import X, col
 
 # Welcome
-bar = [f'{col(32)}■'] * 3 + [f'{col(33)}■'] * 3 + [f'{col(31)}■'] * 3 # Difficulty bar
-print(f'{col(31)}Welcome to the casino!\n{X}')
+bar = [f'{col(32)}■'] * 3 + [f'{col(33)}■'] * 3 + [f'{col(31)}■'] * 3 # difficulty bar
 
 # Range config loop
-while True:
-    while True: # Establish lower bound
-        low = input("What's your lucky number (lower bound)? ")
-        if not low.isdecimal():
-            print(f'Invalid value (not an integer >= 0).')
+def pick_numbers():
+    while True:
+        while True: # Establish lower bound
+            low = input("What's your lucky number (lower bound)? ")
+            if not low.isdecimal():
+                print(f'Invalid value (not an integer >= 0).')
+            else:
+                low = int(low)
+                break
+
+        while True: # Establish upper bound
+            upp = input("What's your other lucky number (upper bound)? ")
+            if not upp.isdecimal():
+                print(f'Invalid value (not an integer >= 0).')
+            elif not low + 9 <= int(upp):
+                print(f'Invalid value (must be >= low + 9).')
+            else:
+                upp = int(upp)
+                break
+
+        log = m.floor(m.log2(upp - low + 1) * 10)
+        diff = log % 10 # Assigns 0-9 rating of logarithmic "difficulty"
+
+        # Line below saves the formatting of the diff for the stats later, if wonkily
+        print(statdiff := f'Difficulty: {(X, col(32), col(33), col(31))[m.ceil(diff / 3)]}{diff + 1}{X}/10')
+
+        for i in range(diff): # Print difficulty bar
+            print(bar[i], end='')
+        print(X + '■' * (9 - diff) + '\n')
+
+        # Reconfig validation loop
+        reconfig = None
+        while reconfig not in ('y', 'n'):
+            reconfig = input('Keep these numbers (y/n)? ').strip().lower()
+        if reconfig == 'n':
+            print()
         else:
-            low = int(low)
             break
 
-    while True: # Establish upper bound
-        upp = input("What's your other lucky number (upper bound)? ")
-        if not upp.isdecimal():
-            print(f'Invalid value (not an integer >= 0).')
-        elif not low + 9 <= int(upp):
-            print(f'Invalid value (must be >= low + 9).')
-        else:
-            upp = int(upp)
-            break
+    print(f"{col(31)}\nLet's go gambling!{X}\n")
 
-    log = m.floor(m.log2(upp - low + 1) * 10)
-    diff = log % 10 # Assigns 0-9 rating of logarithmic "difficulty"
-
-    # Line below saves the formatting of the diff for the stats later, if wonkily
-    print(statdiff := f'Difficulty: {(X, col(32), col(33), col(31))[m.ceil(diff / 3)]}{diff + 1}{X}/10')
-
-    for i in range(diff): # Print difficulty bar
-        print(bar[i], end='')
-    print(X + '■' * (9 - diff) + '\n')
-
-    # Reconfig validation loop
-    reconfig = None
-    while reconfig not in ('y', 'n'):
-        reconfig = input('Keep these numbers (y/n)? ').strip().lower()
-    if reconfig == 'n':
-        print()
-    else:
-        break
-
-print(f"{col(31)}\nLet's go gambling!{X}\n")
 
 # Main loop
 def play():
@@ -105,6 +106,4 @@ The correct number was {col(95)}{rand}{X}.\n')
             lost += 1
             break
 
-def play(creds: int):
-    creds += 1
     return creds

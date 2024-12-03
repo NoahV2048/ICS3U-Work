@@ -1,14 +1,61 @@
-# Level 4+ – Bonus Challenges
-# Added pizzazz: random words from an API and definitions from Merriam Webster API
-# Noah Verdon
-# Last edited: Nov. 18, 2024
+# Hangman Game
 
 import random, requests
+from common import X, col, pl, cred_msg, gs_msg
+
 
 # Init
-X = '\x1b[0m' # color shortcuts
-def col(i: int) -> str:
-    return f'\x1b[1;{i}m'
+
+hangman_incorrect = [f'''
+  ╭───╮
+  │   ┆
+  │
+  │
+  │
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │
+  │
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │   {col(31)}|{X}
+  │
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │   {col(31)}|\\{X}
+  │
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │  {col(31)}/|\\{X}
+  │
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │  {col(31)}/|\\{X}
+  │    {col(31)}\\{X}
+  │
+══╧══════''', f'''
+  ╭───╮
+  │   ┆
+  │   {col(31)}O{X}
+  │  {col(31)}/|\\{X}
+  │  {col(31)}/ \\{X}
+  │
+══╧══════''']
 
 def get_word() -> str: # originally used https://random-word-api.herokuapp.com/home but some words were weird so I used https://random-word-api.vercel.app/
     newword = requests.get(f'https://random-word-api.vercel.app/api?words=1&length={random.randint(3, 9)}&type=uppercase').json()
@@ -21,80 +68,24 @@ def define(word: str) -> list: # from Merriam-Webster https://dictionaryapi.com/
     except:
         return ['definition not found']
 
-creds = 500
+def get_guess():
+    while True:
+        inp = input('Guess a letter (or a 3+ letter word): ').strip().upper()
+        if not inp.isalpha() or len(inp) == 2:
+            print(f'\x1b[31m"{inp}" is not a valid guess.{X} {gs_msg()}')
+        else:
+            return inp
 
-# ASCII art modified from https://gist.github.com/chrishorton/8510732aa9a80a03c829b09f12e20d9c
-hangman_incorrect = [f'''
-  +---+
-  |   |
-  |
-  |
-  |
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |
-  |
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |   {col(31)}|{X}
-  |
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |   {col(31)}|\\{X}
-  |
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |  {col(31)}/|\\{X}
-  |
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |  {col(31)}/|\\{X}
-  |    {col(31)}\\{X}
-  |
-=========''', f'''
-  +---+
-  |   |
-  |   {col(31)}O{X}
-  |  {col(31)}/|\\{X}
-  |  {col(31)}/ \\{X}
-  |
-=========''']
+def letter_response():
+    pass
 
 # Main loop
-while True:
+def play(creds, bet):
+    print(f'{col(32)}Playing Hangman...{X}')
+
     # Game init
     word, guesses = get_word(), 6
     letters, incorrect, wrong_words = set(), set(), set()
-    inp, bet = '', 0 # unnecessary but colab red underlines are pretty annoying
-
-    while True: # removed flag variables to reduce redundancy
-        print(f'You have {cred_msg()} ', end='')
-        bet = input('How many would you like to bet? ').strip()
-        if bet.isdecimal():
-            bet = int(bet)
-            if bet == 0:
-                print(f'\x1b[31mYou have to bet something!{X}')
-            elif not 1 <= bet <= creds:
-                print(f'\x1b[31mInsufficient funds.{X}')
-            else:
-                break
-        else:
-            print(f'\x1b[31mInvalid bet.{X}')
 
     print(hangman_incorrect[0])
     print(f'\nGuess the {col(35)}secret word!{X} You have {gs_msg()}')
@@ -102,14 +93,8 @@ while True:
 
     # Game loop
     while guesses > 0:
-        while True: # removed flag variables to reduce redundancy
-            inp = input('Guess a letter (or a 3+ letter word): ').strip().upper()
-            if not inp.isalpha() or len(inp) == 2:
-                print(f'\x1b[31m"{inp}" is not a valid guess.{X} {gs_msg()}')
-            else:
-                break
+        inp = get_guess()
 
-        # Letter response
         if inp in letters or inp in incorrect or inp in wrong_words:
             print(f'\x1b[31mYou have already guessed {inp}.{X} {gs_msg()}')
         else:
@@ -160,18 +145,4 @@ while True:
         print(f'    {i}. {deff}')
     print()
 
-    # Replay
-    if creds == 0:
-        print(col(31) + 'You ran out of credits. Game over!' + X)
-        break
-    else:
-        replay = ''
-        while replay not in ('y', 'n'):
-            print(f'Would you like to play again ({col(32)}Y{X}/{col(31)}N{X})? ', end='')
-            replay = input().strip().lower()
-        print()
-        if replay == 'n':
-            break
-
-# End
-print(f'{col(32)}Thanks for playing!{X} Your final balance is {cred_msg()}')
+    return creds
