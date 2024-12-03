@@ -14,8 +14,10 @@ def col(i: int) -> str:
 def pl(var, es) -> str: # plurality function
     return "es" * (var != 1) if es else "s" * (var != 1)
 
-def cred_msg() -> str: # credit message function
-    return f'{col(36)}{creds}{X} credit{pl(creds, 0)}.'
-
-def gs_msg() -> str: # guess message function
+def gs_msg(guesses) -> str: # guess message function
     return f'{col(33)}{guesses}{X} incorrect guess{pl(guesses, 1)} remaining.'
+
+def border(msg, c):
+    print(col(33) + '╔' + '═' * len(msg) + '╗')
+    print(f'║{col(c)}{msg}{col(33)}║')
+    print(col(33) + '╚' + '═' * len(msg) + '╝' + X + '\n')
