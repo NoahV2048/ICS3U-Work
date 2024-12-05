@@ -4,31 +4,29 @@ import pgzrun
 # Screen dimensions (WIDTH , HEIGHT)
 WIDTH, HEIGHT = 1280, 1024
 
-# Create shooting star Actor
-shooting_star = 'star'    # make sure you’ve saved the star.png file
-# give it a starting position of (0,0)
 
-# Generate random stars (the ones that don’t move)
-# You will need a for loop to create 20 stars and append them to a list
+shooting_star = Actor('star', (0, 0))
 
-stars = [] # empty list
+stars = []
 
-for i in range (20): # 20 stars
-    starx  = random.randint(0, WIDTH)  # generate a random x value using randint
-    stary  = random.randint(0, HEIGHT)  # a random y value - make sure the star is in the sky
-    mystar = (starx, stary) # you may copy this
-    stars.append(mystar)  #you may copy this
+for i in range(20):
+    starx = random.randint(0, WIDTH)
+    stary = random.randint(int(HEIGHT / 2), HEIGHT)
+    mystar = (starx, stary)
+    stars.append(mystar)
 
 
 def draw():
     screen.clear()
     
-    # Draw sky 
-    
+    screen.fill((200, 200, 200))
+    ground = Rect((0, HEIGHT/2), (WIDTH, HEIGHT))
 
-    
-    # Draw ground ensure it’s on the bottom half of the screen only
+    screen.draw.filled_rect(ground, 'brown')
    
+    for star in stars:
+        star.draw()
+
     
     # Draw snowman
     # use multiple screen.draw.filled_circle… 
@@ -43,16 +41,13 @@ def draw():
     # anything else for your snowman?
     
 
-
-
-    # Draw stars you can copy this line
-  
     for x, y in stars:
         screen.draw.filled_circle((x, y), 3, "yellow")
     
     # Draw bush using filled circles and / or triangles
         
     # Draw shooting star actor
+    shooting_star.draw()
    
 
 def update():
