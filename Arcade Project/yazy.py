@@ -1,7 +1,10 @@
 # Yahtzee Game
+# Recreation of Yahtzee gameplay for a single player
+# Noah Verdon
+# Last edited: Dec. 4, 2024
 
 import random
-from common import X, col
+from common import X, col, border
 
 
 # Init
@@ -23,10 +26,11 @@ def display_dice():
 def score_card():
     print()
 
+
 # Main Game
 
-def play(creds, bet):
-    print(f'{col(32)}Playing Yahtzee...\n{X}')
+def play(bet):
+    border('YAHTZEE', 32)
 
 
 
@@ -35,6 +39,4 @@ def play(creds, bet):
         display_dice()
         input()
 
-    return creds
-
-play(1, 1)
+    return result
