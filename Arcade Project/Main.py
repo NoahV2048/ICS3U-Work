@@ -1,7 +1,7 @@
 # Arcade
 # Allows user to play 3 different minigames
 # Noah Verdon
-# Last edited: Dec. 4, 2024
+# Last edited: Dec. 6, 2024
 
 import time as t
 import number_guesser, hangman, yazy
@@ -12,12 +12,12 @@ from common import X, col, pl, cred_msg, border, yn_validate
 
 border('WELCOME TO THE ARCADE!', 31)
 creds = 1000
-num_guess_lower, num_guess_upper = 0, 0
+num_guess_lower, num_guess_upper, dice_setting = 0, 0, True
 games = ['Number Guesser', 'Hangman', 'Yahtzee', 'Settings', 'Quit']
 
 class Game_Stats: # stats unique to each game
     def __init__(self):
-        self.won, self.lost = 0, 0
+        self.won, self.lost, self.max_score = 0, 0, 0
 
 min_creds, max_creds = (creds,) * 2 # global stats
 num_stats, hang_stats, yazy_stats = Game_Stats(), Game_Stats(), Game_Stats()
@@ -75,29 +75,44 @@ def game_stats(i: int) -> None:
     stats = stat_names[i]
 
     print(f'''{col(36)}{games[i]}:{X}
-Rounds Played: {col(33)}{(total := stats.won + stats.lost)}{X}
-Wins-Losses: {col(32)}{stats.won}{X}-{col(31)}{stats.lost}{X}''')
+Rounds Played: {col(33)}{(total := stats.won + stats.lost)}{X}''')
+    
+    if games[i] == 'Yahtzee': # yahtzee stats different because you win every time
+        print(f'Highest Score: {col(32)}{stats.max_score}{X}')
 
-    if total == 0:
-        print(f'Win Rate: {col(33)}No percentage available{X}\n')
+        if total == 0:
+            print(f'Yahtzee Rate: {col(33)}No percentage available{X}\n')
+        else:
+            print(f'Yahtzee Rate: {col(33)}{100 * stats.won / (total):.1f}%{X}\n')
+
     else:
-        print(f'Win Rate: {col(33)}{100 * stats.won / (total):.1f}%{X}\n')
+        print(f'Wins-Losses: {col(32)}{stats.won}{X}-{col(31)}{stats.lost}{X}')
 
-def settings():
+        if total == 0:
+            print(f'Win Rate: {col(33)}No percentage available{X}\n')
+        else:
+            print(f'Win Rate: {col(33)}{100 * stats.won / (total):.1f}%{X}\n')
+
+def settings() -> None:
     '''Allows user to configure settings for the arcade.'''
     print(col(33) + 'Settings:' + X)
-    for i, item in enumerate(['Pick New Numbers (Number Guesser)', 'Exit Settings'], start=1):
+    for i, item in enumerate(['Pick New Numbers (Number Guesser)', 'Toggle Custom Dice Characters (Yahtzee)', 'Exit Settings'], start=1):
         print(f'{i}. {item}')
     print()
     t.sleep(0.25)
 
-    setting = int_from_list(2, 'Select a setting: ')
+    setting = int_from_list(3, 'Select a setting: ')
 
     if setting == 0:
-        print('You selected: Pick New Numbers (Number Guesser)')
+        print('You selected: Pick New Numbers (Number Guesser)\n')
         global num_guess_lower, num_guess_upper
         num_guess_lower, num_guess_upper = number_guesser.get_numbers()
     elif setting == 1:
+        print('You selected: Toggle Custom Dice Characters (Yahtzee)')
+        global dice_setting
+        dice_setting = not dice_setting
+        print('Custom characters are now ' + (f'{col(32)}enabled.' if dice_setting else f'{col(31)}disabled.') + X + '\n')
+    else:
         print('You selected: Exit Settings\n')
 
 
@@ -122,17 +137,29 @@ while True:
         if not num_guess_lower and not num_guess_upper:
             num_guess_lower, num_guess_upper = number_guesser.get_numbers()
         result = number_guesser.play(bet, num_guess_lower, num_guess_upper)
+
     elif game == 1:
         result = hangman.play(bet)
-    elif game == 2:
-        result = yazy.play(bet)
 
-    if result > 0: # win or loss logic
+    elif game == 2:
+        result, yazy_score, yazy_bool = yazy.play(bet, dice_setting)
+
+        if yazy_score > yazy_stats.max_score: # extra stats for yahtzee
+            yazy_stats.max_score = yazy_score
+        
+        if yazy_bool:
+            yazy_stats.won += 1
+        else:
+            yazy_stats.lost += 1
+
+    if result >= 0: # win or loss logic
         print(f'You won {col(32)}{result:,} credit{pl(result, False)}.{X}\n')
-        stat_names[game].won += 1
+        if game != 2:
+            stat_names[game].won += 1
     else:
         print(f'You lost {col(31)}{-result:,} credit{pl(-result, False)}.{X}\n')
-        stat_names[game].lost += 1
+        if game != 2:
+            stat_names[game].lost += 1
 
     creds += result
 
@@ -144,7 +171,7 @@ while True:
     # Replay
     if creds > 0:
         print(f'You have {cred_msg(creds)}')
-        rep = yn_validate('Would you like to play again (y/n)? ')
+        rep = yn_validate('Would you like to play a game again (y/n)? ')
         if rep:
             print()
         else:
@@ -155,7 +182,10 @@ while True:
 
         if yn_validate('Okay, would you like 1 credit to keep going (y/n)? '):
             creds = 1
-            print('With this one credit, you could achieve anything!\n')
+            print(f'''\n{col(31)}You have accepted money from the mob. You will be in debt forever. Never look back,
+never pause for a moment's grace. You will be followed. If they find you, they will end
+you. Heed this warning: this single credit has determined your entire future.
+{col(32)}Anyways, best of luck and get those earnings back!{X}\n''')
             t.sleep(0.5)
         else:
             break

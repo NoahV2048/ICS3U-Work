@@ -1,7 +1,7 @@
 # Hangman Game
 # Simple word guessing game
 # Noah Verdon
-# Last edited: Dec. 4, 2024
+# Last edited: Dec. 6, 2024
 
 import random, requests, time as t
 from common import X, col, gs_msg, border
@@ -73,7 +73,7 @@ def define(word: str) -> list:
     except:
         return ['definition not found']
 
-def get_guess(guesses) -> str:
+def get_guess(guesses: int) -> str:
     '''Gets a letter or a 3+ letter word as input.'''
     while True:
         inp = input('Guess a letter (or a 3+ letter word): ').strip().upper()
@@ -114,7 +114,7 @@ def display_progress(word: str, letters: set, incorrect: set) -> None:
 
 # Main Game
 
-def play(bet):
+def play(bet: int) -> int:
     '''Plays Hangman.'''
     border('HANGMAN', 32)
 

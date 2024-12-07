@@ -1,7 +1,7 @@
 # Number Guesser
 # Simple binary search game
 # Noah Verdon
-# Last edited: Dec. 4, 2024
+# Last edited: Dec. 6, 2024
 
 import random as r, math as m
 from common import X, col, gs_msg, border, yn_validate
@@ -87,7 +87,7 @@ def get_numbers() -> tuple[int, int]:
 
 # Main Game
 
-def play(bet, low, upp):
+def play(bet: int, low: int, upp: int) -> int:
     '''Plays Number Guesser.'''
     border('NUMBER GUESSER', 32)
 

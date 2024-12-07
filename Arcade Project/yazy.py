@@ -54,7 +54,7 @@ def score_list(dice: list, scorecard: dict) -> tuple[list, list]:
             scores.append(col(32) + str(dice.count(i) * i) + X)
             score_ints.append(dice.count(i) * i)
         else:
-            scores.append(col(31) + str(scorecard[str(i)]) + X)
+            scores.append(col(35) + str(scorecard[str(i)]) + X)
             score_ints.append(scorecard[str(i)])
     
     # Three and four of a kind
@@ -67,7 +67,7 @@ def score_list(dice: list, scorecard: dict) -> tuple[list, list]:
                 scores.append(col(32) + '0' + X)
                 score_ints.append(0)
         else:
-            scores.append(col(31) + str(scorecard[str(n) + '_kind']) + X)
+            scores.append(col(35) + str(scorecard[str(n) + '_kind']) + X)
             score_ints.append(scorecard[str(n) + '_kind'])
     
     # Full House
@@ -79,7 +79,7 @@ def score_list(dice: list, scorecard: dict) -> tuple[list, list]:
             scores.append(col(32) + '0' + X)
             score_ints.append(0)
     else:
-        scores.append(col(31) + str(scorecard['house']) + X)
+        scores.append(col(35) + str(scorecard['house']) + X)
         score_ints.append(scorecard['house'])
 
     # Straight
@@ -91,7 +91,7 @@ def score_list(dice: list, scorecard: dict) -> tuple[list, list]:
             scores.append(col(32) + '0' + X)
             score_ints.append(0)
     else:
-        scores.append(col(31) + scorecard['straight'] + X)
+        scores.append(col(35) + str(scorecard['straight']) + X)
         score_ints.append(scorecard['straight'])
     
     # Yahtzee
@@ -103,7 +103,7 @@ def score_list(dice: list, scorecard: dict) -> tuple[list, list]:
             scores.append(col(32) + '0' + X)
             score_ints.append(0)
     else:
-        scores.append(col(31) + str(scorecard['yazy']) + X)
+        scores.append(col(35) + str(scorecard['yazy']) + X)
         score_ints.append(scorecard['yazy'])
 
     return scores, score_ints
@@ -126,7 +126,7 @@ def print_scorecard(scores: list, current_score: int, available: list) -> None:
 ║ \x1b[33m{'◼ ⯁ ◉ ⯅ ★':10}{X} │ {scores[9]:>13} ║   {col(34)}#10{X}   ║
 ║ \x1b[33m{'★ ★ ★ ★ ★':10}{X} │ {scores[10]:>13} ║   {col(34)}#11{X}   ║
 ╟────────────┴────╫─────────╢
-║ {col(33)}YOUR SCORE: {col(35)}{current_score:>3}{X} ║ {col(33)}NUM: {col(34)}{available.count(True):2}{X} ║
+║ {col(33)}YOUR SCORE: {col(35)}{current_score:>3}{X} ║ {col(33)}LEFT:{col(34)}{available.count(True):2}{X} ║
 ╚═════════════════╩═════════╝\n''')
 
 def cycle(scorecard):
@@ -143,7 +143,6 @@ def cycle(scorecard):
         current_score, available = 0, []
         for val in scorecard.values():
             if val != None:
-                print(f'Value is {val}')
                 current_score += val
                 available.append(False)
             else:
@@ -168,17 +167,22 @@ def cycle(scorecard):
                 kept[['A', 'B', 'C', 'D', 'E'].index(inp)] = not kept[['A', 'B', 'C', 'D', 'E'].index(inp)]
             else:
                 inp = int(inp) - 1
-                scorecard[quick_keys[inp]] = score_ints[inp]
-                print(f'You selected {col(34)}#{inp + 1}{X} and gained {col(32)}{score_ints[inp]}{X} points.')
-                break
+                if available[inp]:
+                    scorecard[quick_keys[inp]] = score_ints[inp]
+                    print(f'You selected {col(34)}#{inp + 1}{X} and gained {col(32)}{score_ints[inp]}{X} point{pl(score_ints[inp], 0)}.')
+                    break
     
     return scorecard
 
-    
+
 # Main Game
 
-def play(bet):
+def play(bet: int, dice_setting: bool) -> tuple[int, int, bool]:
     border('YAHTZEE', 32)
+
+    global dice_map
+    if not dice_setting:
+        dice_map = list(map(str, range(7)))
 
     scorecard = { # initialize scorecard
     '1': None, # could use a list but dict is easier to visualize
@@ -201,7 +205,24 @@ def play(bet):
     # return value is the score // 100 * bet
     # the user isn't playing against an opponent so it isn't a win-lose scenario
 
-    result = sum(scorecard.values()) // 100 * bet
-    return result
+    yazy_score = sum(scorecard.values())
+    result = yazy_score // 100 * bet
 
-play(1)
+    yazy_bool = False
+    if scorecard['yazy'] == 50: # yahtzee bonus seems natural
+        result += bet
+        yazy_bool = True
+
+    print(f'You gained {col(32)}{result:,}{X} credit{pl(result, 0)}, with {col(35)}{yazy_score}{X} point{pl(yazy_score, 0)}.')
+    if yazy_score < 100:
+        print('Do better next time!')
+    elif 100 <= yazy_score < 200:
+        print('Prety good game!')
+    else:
+        print('Amazing score!')
+
+    if scorecard['yazy'] == 50:
+        print('(+100% bet bonus for a Yahtzee)')
+
+    print()
+    return result, yazy_score, yazy_bool
