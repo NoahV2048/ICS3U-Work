@@ -164,15 +164,9 @@ def update():
             paddle1.y += 10
     else: # no players
         if ball.y < paddle1.y - bias and paddle1.top > 0 and ball.x < 600 - response:
-            if ball.y < paddle1.y - bias/3:
-                paddle1.y -= 10
-            else:
-                paddle1.y -= 5
+            paddle1.y -= min(ball.y, 10)
         elif ball.y > paddle1.y + bias and paddle1.bottom < HEIGHT and ball.x < 600 - response:
-            if ball.y > paddle1.y + bias/3:
-                paddle1.y += 10
-            else:
-                paddle1.y += 5
+            paddle1.y += min(ball.y, 10)
 
     if not single:
         if keyboard.UP and paddle2.top > 0:
@@ -181,15 +175,9 @@ def update():
             paddle2.y += 10
     else: # singleplayer
         if ball.y < paddle2.y - bias and paddle2.top > 0 and ball.x > response:
-            if ball.y < paddle2.y - bias/3:
-                paddle2.y -= 10
-            else:
-                paddle2.y -= 5
+            paddle2.y -= min(ball.y, 10)
         elif ball.y > paddle2.y + bias and paddle2.bottom < HEIGHT and ball.x > response:
-            if ball.y > paddle2.y + bias/3:
-                paddle2.y += 10
-            else:
-                paddle2.y += 5
+            paddle2.y += min(ball.y, 10)
 
     # Winning logic
     global winner
