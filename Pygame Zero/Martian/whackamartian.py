@@ -42,6 +42,7 @@ def on_mouse_down(pos, button):
     else:
         if lives > 0:
             lives -= 1 # Subtract 1 from the player's lives when they miss.
+            sounds.laser_002.play()
         if lives == 0:
             clock.unschedule(move_alien) # When the player's lives reach zero, stop the alien's motion.
 
@@ -64,5 +65,5 @@ def draw():
 
 # Go:
 # Schedule the alien to move every 3 seconds.
-clock.schedule_interval(move_alien, 3)
+clock.schedule_interval(move_alien, 2)
 pgzrun.go()
