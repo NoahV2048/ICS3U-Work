@@ -9,7 +9,7 @@ HEIGHT = 600
 ALIENS_PER_ROW = 9
 
 # Initialize Global Variables
-# score = 0
+score = 0
 
 # Initialize primary Actors
 player = Actor('playership2_orange')
@@ -25,6 +25,16 @@ for x in range(ALIENS_PER_ROW):
     aliens.append(a)
 
 bullet = None
+explosions = []
+
+def kaboom(pos):
+    global bullet
+    bullet = None
+    explosions.append(Actor('TBD'), center=(pos), stage=0)
+    animate(explosions[-1], stage=10, duration=0.5, on_finished=end_kaboom)
+
+def end_kaboom():
+    explosions.pop(0)
 
 # Event Handlers - Handle one-time input
 # def on_mouse_down(pos, button):  
@@ -37,12 +47,11 @@ def on_key_down(key, unicode):
     global bullet
     
     if key == keys.SPACE and bullet == None:
-        bullet = Actor('laserblue07', player.pos)
+        bullet = Actor('laserblue01', player.pos)
 
 
 # Update - Handle ongoing input, update positions, check interactions
 def update():
-    global bullet
     
     if keyboard[keys.LEFT] and player.left > 0:
         player.x -= 5
@@ -51,8 +60,16 @@ def update():
         
     if bullet != None:
         bullet.y -= 5
-        if bullet.bottom < 0:
-            bullet = None
+        if bullet.top < 0:
+            kaboom(bullet.midtop)
+        for alien in aliens:
+            if bullet.colliderect(alien):
+                aliens.remove(alien)
+                kaboom(bullet.midtop)
+    
+    # Display explosions
+    for explosion in explosions:
+        explosion.image = f'kaboom_{explosion.stage}'
 
 # Draw - Draw each Actor, and any other UI elements
 def draw():
