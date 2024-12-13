@@ -10,7 +10,6 @@ ALIENS_PER_ROW = 11
 
 # Initialize Global Variables
 score = 0
-time_move = 1
 
 # Initialize primary Actors
 player = Actor('playership2_orange')
@@ -18,10 +17,10 @@ player.pos = (WIDTH // 2, HEIGHT - 50)
 player.scale = 0.5 #resizing sprite to something more reasonable
 
 aliens = []
-for i in range(ALIENS_PER_ROW):
+for x in range(ALIENS_PER_ROW):
     a = Actor('enemygreen1')
     a.scale = 0.5
-    xc = (WIDTH - ALIENS_PER_ROW * 60)//2 + (i * 60) + 30 # A little math to center the row
+    xc = (WIDTH - ALIENS_PER_ROW * 60)//2 + (x * 60) + 30 # A little math to center the row
     a.center = (xc, 150)
     aliens.append(a)
 
