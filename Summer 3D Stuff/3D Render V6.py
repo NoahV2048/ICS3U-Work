@@ -1,11 +1,10 @@
-import math as m, pygame as pg, numpy as np
+import math as m, pygame as pg, numpy as np, os
 from sys import exit
 
 # MAIN SETTINGS:
 x_sensitivity, y_sensitivity = 4, 4
 walking_speed, running_speed, player_height, flymode = 1, 3, 1.75, False
 framerate = 60
-screenx, screeny = 1280, 720
 farinf, fov = False, 60
 
 # Class Init:
@@ -27,10 +26,19 @@ pyramid = Polyhedron([[5, 0, -5], [-5, 0, -5], [0, 0, -10], [0, 5, -7]],
 cube = Polyhedron([[9, 0, -9], [10, 0, -9], [9, 0, -10], [10, 0, -10], [9, 1, -9], [10, 1, -9], [9, 1, -10], [10, 1, -10]],
                   [[0, 1, 3, 2], [4, 5, 7, 6], [0, 1, 5, 4], [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5]])
 
-square = Line([[-3, 1, 3], [-2, 1, 3], [-2, 2, 3], [-3, 2, 3]], True)
+def temp(x, z, h, theta):
+    theta = m.radians(theta)
+    return [m.cos(theta) + x, h, m.sin(theta) + z]
+
+palm_tree = Line([[-3, 0, 3], [-3, 3, 3], temp(-3, 3, 3, 0), [-3, 3, 3], temp(-3, 3, 3, 60), [-3, 3, 3], temp(-3, 3, 3, 120), [-3, 3, 3], temp(-3, 3, 3, 180), [-3, 3, 3], temp(-3, 3, 3, 240), [-3, 3, 3], temp(-3, 3, 3, 300), [-3, 3, 3]], False)
+
+# square = Line([[-3, 1, 3], [-2, 1, 3], [-2, 2, 3], [-3, 2, 3]], True)
 
 # Pygame Setup:
+os.environ['SDL_VIDEO_CENTERED'] = '1'
 pg.init()
+info = pg.display.Info()
+screenx, screeny = info.current_w, info.current_h #1280, 1024 #1280, 720
 screen = pg.display.set_mode((screenx, screeny))
 pg.display.set_caption('3D Render')
 clock = pg.time.Clock()
