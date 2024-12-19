@@ -78,6 +78,9 @@ def update():
                     aliens.remove(alien)
                     kaboom(bullet.midtop)
     
+    for alien_bullet in alien_bullets:
+        sounds.explosioncrunch_003.play()
+    
     move_aliens()
 
     # Display explosions
