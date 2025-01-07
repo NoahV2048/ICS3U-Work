@@ -3,17 +3,16 @@ from pgzhelper import *
 
 # Window Settings
 os.environ["SDL_VIDEO_CENTERED"] = "1" # center the window
-# pygame.mouse.set_visible(False) # set cursor invisible
-# pygame.mouse.set_cursor
+pygame.mouse.set_cursor(*pygame.cursors.broken_x)
 
-WIDTH, HEIGHT = 1280, 720 # game resolution: 1280 x 720
+WIDTH, HEIGHT = 1280, 720 # game resolution: 1280 x 720 (16:9)
 TITLE = "ULTRAKOOL"
-background = f'background_space_{random.randint(0, 9)}'
+bg_image = f'background_space_{random.randint(0, 9)}'
 
 
 # Initialize global variables
-game_stage = None
-background_y = 0
+scene = None
+bg_y = 0
 time_mult = 1
 gravity = 2
 music.set_volume(1)
@@ -26,17 +25,17 @@ player_animate_info = {'idle': 5, 'walk': 6, 'attack': 15, 'hit': 4, 'death': 8}
 # Game Stage Initializations
 
 def init_menu():
-    global game_stage, button_levels, bg_speed
+    global scene, button_levels, bg_dy
 
-    game_stage = 'menu'
+    scene = 'menu'
     button_levels = Actor('text_levels', center=(WIDTH/2, HEIGHT/2))
-    bg_speed = 0.25
+    bg_dy = 0.25
     music.play('intro')
 
 def init_endless():
-    global game_stage, player
+    global scene, player
 
-    game_stage = 'endless'
+    scene = 'endless'
     player = Actor('microwave_idle_0', center=(WIDTH/2, HEIGHT))
     player.state, player.dx, player.dy, player.jumps = None, 0, 0, 2 # establish some custom attributes for the player
     player_animate('idle')
@@ -53,28 +52,36 @@ def player_animate(arg: str, reverse=True) -> None:
         frames = player_animate_info[arg]
         player.fps = frames * 2 * time_mult
         if reverse:
-            player.images = [f'microwave_{arg}_{x}' for x in range(frames - 1, 0, -1)] # option to animate backwards
+            player.images = [f'microwave_{arg}_{x}' for x in range(frames-1, 0, -1)] # option to animate backwards
         else:
             player.images = [f'microwave_{arg}_{x}' for x in range(0, frames, 1)]
     
+def player_attack(pos):
+    attack = Actor('TBD', )
+    attack.direction = player.direction_to(pos)
+
+
 # Event Handlers (one-time inputs)
 
 def on_mouse_down(pos, button):
-    global background, bg_speed
+    global bg_image, bg_dy
 
-    if game_stage == 'menu':
+    if scene == 'menu':
         if button == mouse.LEFT:
             if button_levels.collidepoint(pos):
                 music.fadeout(1)
-                bg_speed = 2
+                bg_dy = 2
                 #sounds.play()
 
                 clock.schedule(init_endless, 1)
 
         if button == mouse.RIGHT:
-            background = f'background_space_{random.randint(0, 9)}'        
+            bg_image = f'background_space_{random.randint(0, 9)}'        
     
-    elif game_stage == 'endless':
+    elif scene == 'endless':
+        if button == mouse.LEFT:
+            player_attack(pos)
+
         if button == mouse.RIGHT:
             init_menu()
 
@@ -90,7 +97,7 @@ def on_key_down(key, unicode):
     if key == keys.ESCAPE: # temporary (easier than ctrl + Q)
         sys.exit()
 
-    if game_stage == 'endless':
+    if scene == 'endless':
         if key == keys.W and player.jumps > 0:
             player.jumps -= 1
             player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectiel height equation for velocity
@@ -103,7 +110,7 @@ def on_key_down(key, unicode):
 def on_key_up(key):
     global time_mult
 
-    if game_stage == 'endless':
+    if scene == 'endless':
         if key == keys.LSHIFT:
             player.fps /= time_mult
             time_mult = 1
@@ -116,12 +123,12 @@ def on_music_end():
 # UPDATE
 
 def update():
-    global background_y # globals
+    global bg_y # globals
 
-    if game_stage == 'menu':
-        background_y -= bg_speed
-        if background_y <= -720:
-            background_y = 0
+    if scene == 'menu':
+        bg_y -= bg_dy
+        if bg_y <= -720:
+            bg_y = 0
         
         if button_levels.collidepoint(pg.mouse.get_pos()[0], pg.mouse.get_pos()[1]):
             if button_levels.scale == 1:
@@ -129,7 +136,7 @@ def update():
         else:
             animate(button_levels, scale=1, duration=0.1, tween='linear')
     
-    elif game_stage == 'endless':
+    elif scene == 'endless':
 
         # Flipping
         if pg.mouse.get_pos()[0] >= player.x:
@@ -166,7 +173,7 @@ def update():
                 reverse = False
             player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
         
-        else:
+        else: 
             player_animate('idle')
         
         player.scale = 3
@@ -178,15 +185,15 @@ def update():
 def draw():
     screen.clear()
 
-    if game_stage == 'menu':
-        screen.blit(background, (0, background_y))
-        screen.blit(background, (0, background_y + 720))
+    if scene == 'menu':
+        screen.blit(bg_image, (0, bg_y))
+        screen.blit(bg_image, (0, bg_y + 720))
         screen.blit('text_title', (240, 50))
         button_levels.draw()
     
-    elif game_stage == 'endless':
-        screen.blit(background, (0, background_y))
-        screen.blit(background, (0, background_y + 720))
+    elif scene == 'endless':
+        screen.blit(bg_image, (0, bg_y))
+        screen.blit(bg_image, (0, bg_y + 720))
         player.draw()
 
 
