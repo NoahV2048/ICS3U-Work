@@ -10,12 +10,22 @@ bg_image = f'background_space_{random.randint(0, 9)}'
 
 # Standard Pygame Settings
 pg.mouse.set_cursor(*pygame.cursors.broken_x)
-joystick = pg.joystick.Joystick(0)
+
+class FakeJoy():
+    def get_axis(*argsw):
+        return 0
+    def get_button(*args):
+        return False
+
+try:
+    joystick = pg.joystick.Joystick(0)
+except:
+    joystick = FakeJoy()
+
 
 # Initialize global variables
 scene = None
 bg_y = 0
-time_mult = 1
 gravity = 2
 joystick_drift = 0.1
 music.set_volume(1)
@@ -42,6 +52,7 @@ def init_endless():
     attacks = []
 
     player = Actor('microwave_idle_0', center=(WIDTH/2, HEIGHT))
+    player.time_mod = 1
     player.state, player.dx, player.dy, player.jumps = None, 0, 0, 2 # establish some custom attributes for the player
     player_animate('idle')
 
@@ -55,7 +66,6 @@ def player_animate(arg: str, reverse=True) -> None:
     if player.state != arg:
         player.state = arg
         frames = player_animate_info[arg]
-        player.fps = frames * 2 * time_mult
         if reverse:
             player.images = [f'microwave_{arg}_{x}' for x in range(frames-1, 0, -1)] # option to animate backwards
         else:
@@ -66,7 +76,8 @@ def player_attack(pos): # position curently misaligned
     attack.direction = player.direction_to(pos)
     attacks.append(attack)
 
-    print('Attack!')
+def player_dash():
+    pass
 
 
 # Event Handlers (one-time inputs)
@@ -83,7 +94,7 @@ def on_mouse_down(pos, button):
 
                 clock.schedule(init_endless, 1)
 
-        if button == mouse.RIGHT or joystick.get_button(0): # testing buttons and this won't work because it's under on_mouse_down so I need another event
+        if button == mouse.RIGHT: #or joystick.get_button(0): # testing buttons and this won't work because it's under on_mouse_down so I need another event
             bg_image = f'background_space_{random.randint(0, 9)}'
     
     elif scene == 'endless':
@@ -91,17 +102,21 @@ def on_mouse_down(pos, button):
             player_attack(pos)
 
         if button == mouse.RIGHT:
-            init_menu()
+            animate(player, time_mod=0.2, duration=0.5)
+            music.set_volume(0.5)
 
 def on_mouse_up(pos, button):
-    pass
+    if scene == 'menu':
+        pass
+
+    elif scene == 'endless':
+        animate(player, time_mod=1, duration=0.5)
+        music.set_volume(1)
 
 def on_mouse_move(pos, rel, buttons):
     pass
 
 def on_key_down(key, unicode):
-    global time_mult
-
     if key == keys.ESCAPE: # temporary (easier than ctrl + Q)
         sys.exit()
 
@@ -111,18 +126,12 @@ def on_key_down(key, unicode):
             player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectile height equation for initial velocity but should be simplified later
         
         elif key == keys.LSHIFT: # shift could trigger sticky keys on Windows
-            time_mult = 0.2
-            player.fps *= time_mult
-            music.set_volume(0.5)
+            pass # dash
 
 def on_key_up(key):
-    global time_mult
 
     if scene == 'endless':
-        if key == keys.LSHIFT:
-            player.fps /= time_mult
-            time_mult = 1
-            music.set_volume(1)
+        pass
 
 def on_music_end():
     pass
@@ -146,6 +155,9 @@ def update():
     
     elif scene == 'endless':
 
+        # Animations
+        player.fps = player_animate_info[player.state] * player.time_mod * 2
+
         # Flipping
         if pg.mouse.get_pos()[0] >= player.x:
             player.flip_x = True
@@ -153,7 +165,7 @@ def update():
             player.flip_x = False
 
         # Gravity
-        player.y -= player.dy * time_mult
+        player.y -= player.dy * player.time_mod
 
         if player.bottom > HEIGHT:
             player.dy = 0
@@ -161,11 +173,11 @@ def update():
             player.bottom = HEIGHT
 
         if player.bottom < HEIGHT:
-            player.dy -= gravity * time_mult
+            player.dy -= gravity * player.time_mod
 
         # Side movement
         if keyboard.a or joystick.get_axis(0) < -joystick_drift:
-            player.x -= 10 * time_mult
+            player.x -= 10 * player.time_mod
 
             reverse = False
             if player.flip_x:
@@ -174,7 +186,7 @@ def update():
             player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
             
         if keyboard.d or joystick.get_axis(0) > joystick_drift:
-            player.x += 10 * time_mult
+            player.x += 10 * player.time_mod
 
             reverse = True
             if player.flip_x:
@@ -184,7 +196,7 @@ def update():
         if not (keyboard.a or joystick.get_axis(0) < -joystick_drift or keyboard.d or joystick.get_axis(0) > joystick_drift):
             player_animate('idle')
         
-        player.scale = 3
+        player.scale = 2
         player.animate()
 
 
