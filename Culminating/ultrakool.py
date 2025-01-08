@@ -3,18 +3,21 @@ from pgzhelper import *
 
 # Window Settings
 os.environ["SDL_VIDEO_CENTERED"] = "1" # center the window
-pygame.mouse.set_cursor(*pygame.cursors.broken_x)
 
 WIDTH, HEIGHT = 1280, 720 # game resolution: 1280 x 720 (16:9)
 TITLE = "ULTRAKOOL"
 bg_image = f'background_space_{random.randint(0, 9)}'
 
+# Standard Pygame Settings
+pg.mouse.set_cursor(*pygame.cursors.broken_x)
+joystick = pg.joystick.Joystick(0)
 
 # Initialize global variables
 scene = None
 bg_y = 0
 time_mult = 1
 gravity = 2
+joystick_drift = 0.1
 music.set_volume(1)
 player_animate_info = {'idle': 5, 'walk': 6, 'attack': 15, 'hit': 4, 'death': 8}
 
@@ -33,9 +36,11 @@ def init_menu():
     music.play('intro')
 
 def init_endless():
-    global scene, player
+    global scene, player, attacks
 
     scene = 'endless'
+    attacks = []
+
     player = Actor('microwave_idle_0', center=(WIDTH/2, HEIGHT))
     player.state, player.dx, player.dy, player.jumps = None, 0, 0, 2 # establish some custom attributes for the player
     player_animate('idle')
@@ -56,9 +61,12 @@ def player_animate(arg: str, reverse=True) -> None:
         else:
             player.images = [f'microwave_{arg}_{x}' for x in range(0, frames, 1)]
     
-def player_attack(pos):
-    attack = Actor('TBD', )
+def player_attack(pos): # position curently misaligned
+    attack = Actor('TBD', pos)
     attack.direction = player.direction_to(pos)
+    attacks.append(attack)
+
+    print('Attack!')
 
 
 # Event Handlers (one-time inputs)
@@ -75,8 +83,8 @@ def on_mouse_down(pos, button):
 
                 clock.schedule(init_endless, 1)
 
-        if button == mouse.RIGHT:
-            bg_image = f'background_space_{random.randint(0, 9)}'        
+        if button == mouse.RIGHT or joystick.get_button(0): # testing buttons and this won't work because it's under on_mouse_down so I need another event
+            bg_image = f'background_space_{random.randint(0, 9)}'
     
     elif scene == 'endless':
         if button == mouse.LEFT:
@@ -100,7 +108,7 @@ def on_key_down(key, unicode):
     if scene == 'endless':
         if key == keys.W and player.jumps > 0:
             player.jumps -= 1
-            player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectiel height equation for velocity
+            player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectile height equation for initial velocity but should be simplified later
         
         elif key == keys.LSHIFT: # shift could trigger sticky keys on Windows
             time_mult = 0.2
@@ -156,7 +164,7 @@ def update():
             player.dy -= gravity * time_mult
 
         # Side movement
-        if keyboard.a:
+        if keyboard.a or joystick.get_axis(0) < -joystick_drift:
             player.x -= 10 * time_mult
 
             reverse = False
@@ -165,7 +173,7 @@ def update():
 
             player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
             
-        elif keyboard.d:
+        if keyboard.d or joystick.get_axis(0) > joystick_drift:
             player.x += 10 * time_mult
 
             reverse = True
@@ -173,7 +181,7 @@ def update():
                 reverse = False
             player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
         
-        else: 
+        if not (keyboard.a or joystick.get_axis(0) < -joystick_drift or keyboard.d or joystick.get_axis(0) > joystick_drift):
             player_animate('idle')
         
         player.scale = 3
