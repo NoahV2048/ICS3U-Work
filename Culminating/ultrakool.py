@@ -1,9 +1,13 @@
+# ULTRAKOOL
+# A really cool combat platformer game
+# Noah Verdon
+# Last Edited: TBD
+
 import pgzrun, os, random, sys, pygame as pg
 from pgzhelper import *
 
 # Window Settings
 os.environ["SDL_VIDEO_CENTERED"] = "1" # center the window
-
 WIDTH, HEIGHT = 1280, 720 # game resolution: 1280 x 720 (16:9)
 TITLE = "ULTRAKOOL"
 bg_image = f'background_space_{random.randint(0, 9)}'
@@ -12,6 +16,8 @@ bg_image = f'background_space_{random.randint(0, 9)}'
 pg.mouse.set_cursor(*pygame.cursors.broken_x)
 
 class FakeJoy():
+    def __init__(self):
+        pygame.mouse.set_visible(False) # hide cursor in controller mode
     def get_axis(*argsw):
         return 0
     def get_button(*args):
@@ -45,15 +51,17 @@ def init_menu():
     bg_dy = 0.25
     music.play('intro')
 
-def init_endless():
+def init_level():
     global scene, player, attacks
 
-    scene = 'endless'
+    scene = 'level'
     attacks = []
 
     player = Actor('microwave_idle_0', center=(WIDTH/2, HEIGHT))
+    player.state = None
     player.time_mod = 1
-    player.state, player.dx, player.dy, player.jumps = None, 0, 0, 2 # establish some custom attributes for the player
+    player.dx, player.dy = 0, 0 # simple movement attributes
+    player.dashing, player.jumps = False, 2 # advanced movement attributes
     player_animate('idle')
 
     music.fadeout(1)
@@ -77,50 +85,56 @@ def player_attack(pos): # position curently misaligned
     attacks.append(attack)
 
 def player_dash():
-    pass
+    player.dashing = True
+    player.dy = 0
+
+    if player.flip_x:
+        player.dx = 20
+    else:
+        player.dx = -20
+
+    clock.schedule
 
 
 # Event Handlers (one-time inputs)
 
 def on_mouse_down(pos, button):
-    global bg_image, bg_dy
-
     if scene == 'menu':
         if button == mouse.LEFT:
             if button_levels.collidepoint(pos):
                 music.fadeout(1)
                 bg_dy = 2
-                #sounds.play()
+                # sounds.play() # TODO: click noise
 
-                clock.schedule(init_endless, 1)
-
-        if button == mouse.RIGHT: #or joystick.get_button(0): # testing buttons and this won't work because it's under on_mouse_down so I need another event
-            bg_image = f'background_space_{random.randint(0, 9)}'
+                clock.schedule(init_level, 1)
     
-    elif scene == 'endless':
+    elif scene == 'level':
         if button == mouse.LEFT:
             player_attack(pos)
 
         if button == mouse.RIGHT:
             animate(player, time_mod=0.2, duration=0.5)
             music.set_volume(0.5)
+            player.fps *= 0.2
 
 def on_mouse_up(pos, button):
     if scene == 'menu':
         pass
 
-    elif scene == 'endless':
+    elif scene == 'level':
         animate(player, time_mod=1, duration=0.5)
         music.set_volume(1)
+        player.fps /= 0.2
 
 def on_mouse_move(pos, rel, buttons):
     pass
 
 def on_key_down(key, unicode):
-    if key == keys.ESCAPE: # temporary (easier than ctrl + Q)
-        sys.exit()
+    if scene == 'menu':
+        if key == keys.ESCAPE:
+            sys.exit()
 
-    if scene == 'endless':
+    if scene == 'level':
         if key == keys.W and player.jumps > 0:
             player.jumps -= 1
             player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectile height equation for initial velocity but should be simplified later
@@ -130,7 +144,7 @@ def on_key_down(key, unicode):
 
 def on_key_up(key):
 
-    if scene == 'endless':
+    if scene == 'level':
         pass
 
 def on_music_end():
@@ -153,10 +167,10 @@ def update():
         else:
             animate(button_levels, scale=1, duration=0.1, tween='linear')
     
-    elif scene == 'endless':
+    elif scene == 'level':
 
         # Animations
-        player.fps = player_animate_info[player.state] * player.time_mod * 2
+        # player.fps = player_animate_info[player.state] * player.time_mod * 2
 
         # Flipping
         if pg.mouse.get_pos()[0] >= player.x:
@@ -211,7 +225,7 @@ def draw():
         screen.blit('text_title', (240, 50))
         button_levels.draw()
     
-    elif scene == 'endless':
+    elif scene == 'level':
         screen.blit(bg_image, (0, bg_y))
         screen.blit(bg_image, (0, bg_y + 720))
         player.draw()
