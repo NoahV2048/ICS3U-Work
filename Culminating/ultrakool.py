@@ -17,7 +17,7 @@ pg.mouse.set_cursor(*pygame.cursors.broken_x)
 
 class FakeJoy():
     def __init__(self):
-        pygame.mouse.set_visible(False) # hide cursor in controller mode
+        pass
     def get_axis(*argsw):
         return 0
     def get_button(*args):
@@ -25,6 +25,7 @@ class FakeJoy():
 
 try:
     joystick = pg.joystick.Joystick(0)
+    pygame.mouse.set_visible(False) # hide cursor in controller mode
 except:
     joystick = FakeJoy()
 
@@ -87,13 +88,22 @@ def player_attack(pos): # position curently misaligned
 def player_dash():
     player.dashing = True
     player.dy = 0
+    dash_duration = 0.2 / player.time_mod
 
     if player.flip_x:
-        player.dx = 20
+        animate(player, dx=35, duration=dash_duration, tween='decelerate')
     else:
-        player.dx = -20
+        animate(player, dx=-35, duration=dash_duration, tween='decelerate')
 
-    clock.schedule
+    clock.schedule(player_dash_end, dash_duration)
+
+def player_dash_end():
+    player.dashing = False
+
+    if player.dx > 0:
+        player.dx = 10
+    elif player.dx < 0:
+        player.dx = -10
 
 
 # Event Handlers (one-time inputs)
@@ -137,10 +147,10 @@ def on_key_down(key, unicode):
     if scene == 'level':
         if key == keys.W and player.jumps > 0:
             player.jumps -= 1
-            player.dy = (2 * gravity * 3.5 * 60) ** 0.5 # rearranging projectile height equation for initial velocity but should be simplified later
+            player.dy = 30
         
         elif key == keys.LSHIFT: # shift could trigger sticky keys on Windows
-            pass # dash
+            player_dash() # dash
 
 def on_key_up(key):
 
@@ -150,22 +160,20 @@ def on_key_up(key):
 def on_music_end():
     pass
 
+# TODO implement controller events for button presses
 
 # UPDATE
 
 def update():
-    global bg_y # globals
-
     if scene == 'menu':
+        global bg_y
+
+        # background movement
         bg_y -= bg_dy
         if bg_y <= -720:
             bg_y = 0
         
-        if button_levels.collidepoint(pg.mouse.get_pos()[0], pg.mouse.get_pos()[1]):
-            if button_levels.scale == 1:
-                animate(button_levels, scale=1.1, duration=0.1, tween='linear')
-        else:
-            animate(button_levels, scale=1, duration=0.1, tween='linear')
+        # 
     
     elif scene == 'level':
 
@@ -179,38 +187,50 @@ def update():
             player.flip_x = False
 
         # Gravity
-        player.y -= player.dy * player.time_mod
 
-        if player.bottom > HEIGHT:
-            player.dy = 0
-            player.jumps = 2
+        if not player.dashing:
+            player.y -= player.dy * player.time_mod
+
+        # Player Collision Detection
+
+        # player.collide_pixel(GROUND)
+        if player.bottom > HEIGHT: # TODO: change to work with tiles
+
+
+            player.dx, player.dy = 0, 0 # stop movement
+            player.jumps = 2 # reset jumps
             player.bottom = HEIGHT
 
         if player.bottom < HEIGHT:
             player.dy -= gravity * player.time_mod
 
         # Side movement
-        if keyboard.a or joystick.get_axis(0) < -joystick_drift:
-            player.x -= 10 * player.time_mod
 
-            reverse = False
-            if player.flip_x:
-                reverse = True
+        if player.dx != 0:
+            player.x += player.dx * player.time_mod
 
-            player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
-            
-        if keyboard.d or joystick.get_axis(0) > joystick_drift:
-            player.x += 10 * player.time_mod
+        else:
+            if keyboard.a or joystick.get_axis(0) < -joystick_drift:
+                player.x -= 10 * player.time_mod
 
-            reverse = True
-            if player.flip_x:
                 reverse = False
-            player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                if player.flip_x:
+                    reverse = True
+
+                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                
+            if keyboard.d or joystick.get_axis(0) > joystick_drift:
+                player.x += 10 * player.time_mod
+
+                reverse = True
+                if player.flip_x:
+                    reverse = False
+                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+            
+            if not (keyboard.a or joystick.get_axis(0) < -joystick_drift or keyboard.d or joystick.get_axis(0) > joystick_drift):
+                player_animate('idle')
         
-        if not (keyboard.a or joystick.get_axis(0) < -joystick_drift or keyboard.d or joystick.get_axis(0) > joystick_drift):
-            player_animate('idle')
-        
-        player.scale = 2
+        player.scale = 2.5
         player.animate()
 
 
@@ -223,7 +243,17 @@ def draw():
         screen.blit(bg_image, (0, bg_y))
         screen.blit(bg_image, (0, bg_y + 720))
         screen.blit('text_title', (240, 50))
+
+        # Draw buttons !! TODO: add more buttons
+        #button__levels_highlight.draw()
         button_levels.draw()
+
+        #button_settings_highlight.draw()
+        #button_settings.draw()
+
+        #button_quit_highlight.draw()
+        #button_quit.draw()
+        
     
     elif scene == 'level':
         screen.blit(bg_image, (0, bg_y))
