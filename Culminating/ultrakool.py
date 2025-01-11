@@ -5,6 +5,7 @@
 
 import pgzrun, os, random, sys, pygame as pg
 from pgzhelper import *
+from levels import *
 
 # Window Settings
 os.environ["SDL_VIDEO_CENTERED"] = "1" # center the window
@@ -35,7 +36,7 @@ scene = None
 bg_y = 0
 gravity = 2
 joystick_drift = 0.1
-music.set_volume(1)
+music.set_volume(0) # TODO add setting and unmute
 player_animate_info = {'idle': 5, 'walk': 6, 'attack': 15, 'hit': 4, 'death': 8}
 
 # Initialize primary Actors
@@ -52,29 +53,53 @@ def init_menu():
     bg_dy = 0.25
     music.play('intro')
 
-def init_level():
-    global scene, player, attacks
+def init_level(num):
+    global scene, player, attacks, level
 
     scene = 'level'
+    level = num - 1
     attacks = []
 
-    player = Actor('microwave_idle_0', center=(WIDTH/2, HEIGHT))
-    player.state = None
+    player = Actor('microwave_idle_0')
+    player.state = None # hmmmm
     player.time_mod = 1
     player.dx, player.dy = 0, 0 # simple movement attributes
     player.dashing, player.jumps = False, 2 # advanced movement attributes
     player_animate('idle')
 
-    music.fadeout(1)
-    clock.schedule(music.play('song_7'), 1)
+    switch_screen(0, 0)
+    player.pos = player.spawn
 
+    music.fadeout(1)
+    #music.play('song_7')
+
+def switch_screen(x: int, y: int):
+    global tiles, tiles_no_clip
+    tiles, tiles_no_clip = [], []
+
+    for i, row in enumerate(levels[level][f'{x}-{y}']):
+        print(row)
+        for j, tile in enumerate(row):
+            if tile_unicode_dict[tile] == 'air':
+                pass
+            elif tile_unicode_dict[tile] == 'player_spawn':
+                player.spawn = (32*j, 32*i)
+            elif tile_unicode_dict[tile][0].isdecimal():
+                new_tile = Actor(f'tile_{tile_unicode_dict[tile]}', topleft=(32*j, 32*i))
+                new_tile.scale = 2
+                tiles.append(new_tile)
+            else:
+                new_tile = Actor(f'tile_{tile_unicode_dict[tile]}', topleft=(32*j, 32*i))
+                new_tile.scale = 2
+                tiles_no_clip.append(new_tile)
 
 # Player Functions
 
 def player_animate(arg: str, reverse=True) -> None:
     if player.state != arg:
         player.state = arg
-        frames = player_animate_info[arg]
+        frames = player_animate_info[arg] # something screwy here
+        player.fps = frames * 2
         if reverse:
             player.images = [f'microwave_{arg}_{x}' for x in range(frames-1, 0, -1)] # option to animate backwards
         else:
@@ -115,12 +140,15 @@ def on_mouse_down(pos, button):
                 music.fadeout(1)
                 bg_dy = 2
                 # sounds.play() # TODO: click noise
+                init_level(1) # temp
 
-                clock.schedule(init_level, 1)
+                # global thingy and level = 1
+                #clock.schedule(init_level, 1)
     
     elif scene == 'level':
         if button == mouse.LEFT:
-            player_attack(pos)
+            pass
+            # player_attack(pos)
 
         if button == mouse.RIGHT:
             animate(player, time_mod=0.2, duration=0.5)
@@ -178,7 +206,8 @@ def update():
     elif scene == 'level':
 
         # Animations
-        # player.fps = player_animate_info[player.state] * player.time_mod * 2
+
+        # uhhhhh
 
         # Flipping
         if pg.mouse.get_pos()[0] >= player.x:
@@ -191,18 +220,20 @@ def update():
         if not player.dashing:
             player.y -= player.dy * player.time_mod
 
-        # Player Collision Detection
+        # Player Collision Detection TODO: FIX TONS OF BUGGGGGGGS
 
-        # player.collide_pixel(GROUND)
-        if player.bottom > HEIGHT: # TODO: change to work with tiles
-
-
+        if player.collidelistall_pixel(tiles):
             player.dx, player.dy = 0, 0 # stop movement
             player.jumps = 2 # reset jumps
-            player.bottom = HEIGHT
+            while player.collidelistall_pixel(tiles):
+                player.bottom -= 1
 
-        if player.bottom < HEIGHT:
+        else:
             player.dy -= gravity * player.time_mod
+
+        if player.y > HEIGHT:
+            player.pos = player.spawn
+            player.dy = 0
 
         # Side movement
 
@@ -257,7 +288,14 @@ def draw():
     
     elif scene == 'level':
         screen.blit(bg_image, (0, bg_y))
-        screen.blit(bg_image, (0, bg_y + 720))
+
+
+        for tile in tiles:
+            tile.draw()
+        
+        for tile in tiles_no_clip:
+            tile.draw()
+
         player.draw()
 
 
