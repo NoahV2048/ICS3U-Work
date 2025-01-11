@@ -145,7 +145,7 @@ def on_key_down(key, unicode):
             sys.exit()
 
     if scene == 'level':
-        if key == keys.W and player.jumps > 0:
+        if key in (keys.W, keys.SPACE) and player.jumps > 0:
             player.jumps -= 1
             player.dy = 30
         
@@ -230,7 +230,7 @@ def update():
             if not (keyboard.a or joystick.get_axis(0) < -joystick_drift or keyboard.d or joystick.get_axis(0) > joystick_drift):
                 player_animate('idle')
         
-        player.scale = 2.5
+        player.scale = 2
         player.animate()
 
 
