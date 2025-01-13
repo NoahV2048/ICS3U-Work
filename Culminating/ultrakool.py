@@ -100,11 +100,11 @@ def switch_level_screen():
         player.time_mod = 0.2
         time_mod_start()
 
-    if f'{player.mx}-{player.my}' not in levels[level].keys():
+    if f'{player.mx},{player.my}' not in levels[level].keys():
         player.mx, player.my = 0, 0
         clock.schedule(player_reset, 1/60)
 
-    for i, row in enumerate(levels[level][f'{player.mx}-{player.my}']):
+    for i, row in enumerate(levels[level][f'{player.mx},{player.my}']):
         for j, tile in enumerate(row):
             name = tile_unicode_dict[tile]
 
