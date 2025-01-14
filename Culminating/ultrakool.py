@@ -51,7 +51,7 @@ buttons_dict = {'main': buttons_main, 'levels': buttons_levels, 'settings': butt
 
 # Levels
 player = Actor('microwave_idle_0')
-gravity = 2
+gravity = 1.1
 player_animate_info = {'idle': 5, 'walk': 6, 'attack': 15, 'hit': 4, 'death': 8}
 
 
@@ -93,7 +93,7 @@ def init_level(num):
     #music.play('song_7')
 
 def switch_level_screen():
-    global tiles_clip, tiles_front, tiles_back, hazards, tiles_animate
+    global tiles_clip, tiles_front, tiles_back, hazards, tiles_animate, floating_text
     tiles_clip, tiles_front, tiles_back, hazards, tiles_animate = [], [], [], [], []
 
     if time_modded: # BUG
@@ -147,6 +147,10 @@ def switch_level_screen():
                 new_tile.scale = 2
                 if 'big' in name:
                     new_tile.scale = 3
+    
+    floating_text = []
+    if f'{player.mx},{player.my}' in level_text[level].keys(): # level text
+        floating_text = level_text[level][f'{player.mx},{player.my}']
 
 # Player Functions
 
@@ -186,6 +190,7 @@ def player_die():
     player.alive = False
     player.static = True
     if time_modded:
+        player.time_mod = 1
         time_mod_end()
     player_animate('death')
 
@@ -302,7 +307,7 @@ def on_key_down(key, unicode):
     if scene == 'level':
         if key in (keys.W, keys.SPACE) and player.jumps > 0 and not player.static:
             player.jumps -= 1
-            player.dy = 30
+            player.dy = 18
         
         elif key == keys.S and player.can_vertical_reset and not player.static:
             player.dy -= 30
@@ -343,6 +348,7 @@ def update():
     
     elif scene == 'level':
         global player_hitbox
+        player_hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
 
         # Tiles
 
@@ -358,86 +364,78 @@ def update():
             else:
                 player.flip_x = False
 
-        # Player Movement
-
-        if not player.static:
-            if not player.dashing:
-                player.y -= player.dy * player.time_mod # gravity
-
-            player.dy -= gravity * player.time_mod
-
-            if player.dx != 0:
-                player.x += player.dx * player.time_mod
-
-            else:
-                if keyboard.a: #or joystick.get_axis(0) < -joystick_drift: TODO
-                    player.x -= 10 * player.time_mod
-
-                    reverse = False
-                    if player.flip_x:
-                        reverse = True
-
-                    player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
-                    
-                if keyboard.d: #or joystick.get_axis(0) > joystick_drift: TODO
-                    player.x += 10 * player.time_mod
-
-                    reverse = True
-                    if player.flip_x:
-                        reverse = False
-                    player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
-                
-                if not (keyboard.a or keyboard.d): # (joystick.get_axis(0) < -joystick_drift or joystick.get_axis(0) > joystick_drift): TODO
-                    player_animate('idle')
-
-        player_hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
-
         # Player Collision Detection
 
         down_boost = False
         for tile in tiles_clip: # up and down
             counter = 0
             while tile.colliderect(player_hitbox):
-            #player.collide_pixel(tile):
-                player_hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
-
                 counter += 1
                 if counter > 64:
                     break
 
-                if player_hitbox.top < tile.top and 'u' in tile.image:
-                    player.y -= 1
+                if player_hitbox.top < tile.top and ('u' in tile.image or 'water' in tile.image):
+                    player_hitbox.y -= 1
                     player_ground_reset() # change various player attributes when touching the ground
 
                 elif player_hitbox.bottom > tile.bottom and 'd' in tile.image:
-                    player.y += 1
+                    player_hitbox.y += 1
                     down_boost = True
-        
+            
             counter = 0
             while tile.colliderect(player_hitbox): # left and right
-                player_hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
-
                 counter += 1
                 if counter > 64:
                     player_reset()
                     break
 
-                if player_hitbox.left < tile.right and 'r' in tile.image:
-                    player.x += 1
-                    player.dx = 0
+                if player_hitbox.left < tile.right and 'r' in tile.image.replace('water', ''):
+                    player_hitbox.x += 1
+                    #player.dx = 0
                     player.dashing = False
 
                 elif player_hitbox.right > tile.left and 'l' in tile.image.replace('tile', ''):
-                    player.x -= 1
-                    player.dx = 0
+                    player_hitbox.x -= 1
+                    #player.dx = 0
                     player.dashing = False
-
-        if down_boost and player.dy > 0:
-            player.dy -= player.dy * 1.1
 
         for hazard in hazards:
             if hazard.colliderect(player_hitbox): # hazard collision detection
                 player_die()
+
+        # Player Movement
+
+        if not player.dashing:
+                player_hitbox.y -= player.dy * player.time_mod # gravity
+
+        player.dy -= gravity * player.time_mod
+        
+        if player.dx != 0 or player.static:
+            player_hitbox.x += player.dx * player.time_mod
+
+        else:
+            if keyboard.a: #or joystick.get_axis(0) < -joystick_drift: TODO
+                player_hitbox.x -= 10 * player.time_mod
+
+                reverse = False
+                if player.flip_x:
+                    reverse = True
+
+                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                
+            if keyboard.d: #or joystick.get_axis(0) > joystick_drift: TODO
+                player_hitbox.x += 10 * player.time_mod
+
+                reverse = True
+                if player.flip_x:
+                    reverse = False
+                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+            
+            if not (keyboard.a or keyboard.d): # (joystick.get_axis(0) < -joystick_drift or joystick.get_axis(0) > joystick_drift): TODO
+                player_animate('idle')
+        
+        if down_boost and player.dy > 0:
+            player.dy -= player.dy * 1.1
 
         switch_screen = True
         if player_hitbox.centerx > WIDTH:
@@ -459,6 +457,7 @@ def update():
             player.pos = player_hitbox.center
             switch_level_screen()
 
+        player.pos = (player_hitbox.x + 30, player_hitbox.y)
         player.scale = 2
         player.animate()
 
@@ -511,14 +510,18 @@ def draw():
         for tile in (tiles_clip):
             tile.draw()
 
+        # Level Text
+        for text in floating_text:
+            screen.draw.text(text[0], center=(text[1] * 32 + 16, text[2] * 32 + 16), fontname='vcr_ocd_mono', fontsize=30, color='white')
+
         # Entities
-        # screen.draw.rect(player_hitbox, 'RED') # only for debug
+        screen.draw.rect(player_hitbox, 'RED') # only for debug
         player.draw()
 
         # In front of entities
         for tile in tiles_front:
             tile.draw()
-        
+
         # Death screen
         if not player.alive:
             pass
