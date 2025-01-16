@@ -63,6 +63,10 @@ class Trigger:
         self.name = name
         triggers.append(self)
 
+class Level_Entities:
+    def __init__(self):
+        self.attacks = None
+
 
 # Scene and Screen Initializations
 
@@ -74,7 +78,7 @@ def init_menu():
     menu_screen = 'main'
     bg_menu = f'background_space_{random.randint(0, 9)}'
     bg_y, bg_dy = 0, 0.25
-    # music.play('intro')
+    music.play('intro')
 
 def init_level(num):
     global scene, bg_levels, bg_y, bg_dy, attacks, time_modded, level, used_triggers
@@ -94,7 +98,7 @@ def init_level(num):
     player.mx, player.my = 0, 0
     player.time_mod = 1
 
-    player.can_overclock, player.can_attack = (False, True) if num == 1 else (True, True) # level 1 prohibits some functionality
+    player.can_overclock, player.can_attack = (False, False) if num == 1 else (True, True) # level 1 prohibits some functionality
     
     player_animate('idle')
 
@@ -105,8 +109,8 @@ def init_level(num):
     #music.play('song_7')
 
 def switch_level_screen():
-    global tiles_clip, tiles_front, tiles_back, hazards, tiles_animate, triggers, floating_text
-    tiles_clip, tiles_front, tiles_back, hazards, tiles_animate, triggers = [], [], [], [], [], []
+    global tiles_clip, tiles_front, tiles_back, hazards, tiles_animate, triggers, floating_text, attacks
+    tiles_clip, tiles_front, tiles_back, hazards, tiles_animate, triggers, attacks = [], [], [], [], [], [], []
 
     if time_modded: # BUG maybe...
         player.time_mod = 0.2
@@ -189,7 +193,7 @@ def player_animate(arg: str, reverse=False) -> None:
             player.fps /= 2
         elif arg == 'attack':
             player.images = [f'microwave_{arg}_{x}' for x in range(1, frames)]
-            player.fps /= 4
+            player.fps /= 2
         else:
             if reverse:
                 player.images = [f'microwave_{arg}_{x}' for x in range(frames-1, -1, -1)] # option to animate backwards
@@ -202,7 +206,7 @@ def player_reset():
 
 def player_ground_reset():
     player.can_vertical_reset = True
-    player.dashing = False
+    player.dashing, player.attacking = False, False
     player.dx, player.dy = 0, 0
     player.jumps = 2
 
@@ -210,33 +214,32 @@ def player_attack(pos):
     global attacks
 
     player_animate('attack')
-    player.can_attack = False
+    player.can_attack, player.can_dash = False, False
+    player.attacking = True
 
     new_attack = Actor('attack_0', ())
     new_attack.images = [f'attack_{i}' for i in range(5)]
-    new_attack.pos = player_hitbox.center
+    new_attack.pos = player.hitbox.center
     new_attack.dy = player.dy
 
     new_attack.direction = player.direction_to(pos)
     new_attack.angle = player.direction_to(pos) + 180
 
     attacks.append(new_attack)
+    #new_attack.direction = 180
+    #new_attack.flip_x
 
-    if not player.flip_x:
-        player.dx = 1
-        #new_attack.direction = 180
-        #new_attack.flip_x
-    else:
-        player.dx = -1
+    player.attacking = True
 
-    player.dashing = True
-
-    clock.schedule(player_attack_end, 1)
+    clock.schedule(player_attack_end, 0.5)
+    clock.schedule(player_attack_cooldown, 1)
 
 def player_attack_end():
-    player.can_attack = True
-    player.dashing = False
+    player.attacking = False
     player.dx, player.dy = 0, 0
+
+def player_attack_cooldown():
+    player.can_attack, player.can_dash = True, True
 
 def player_die():
     player.alive = False
@@ -325,7 +328,7 @@ def on_mouse_down(pos, button):
                             #clock.schedule(init_level, 1)
     
     elif scene == 'level':
-        if button == mouse.LEFT and player.can_attack:
+        if button == mouse.LEFT and player.can_attack and not player.static:
             player_attack(pos)
 
         if button == mouse.RIGHT and not time_modded and not player.static and player.can_overclock:
@@ -351,7 +354,7 @@ def on_key_down(key, unicode):
                 menu_screen = 'main'
 
     if scene == 'level':
-        if key in (keys.W, keys.SPACE) and player.jumps > 0 and not player.static:
+        if key in (keys.W, keys.SPACE) and player.jumps > 0 and not (player.static or player.dashing or player.attacking):
             player.jumps -= 1
             player.dy = 18
         
@@ -381,159 +384,163 @@ def on_music_end():
 # UPDATE
 
 def update():
-    if scene == 'menu':
-        global bg_y
+    match scene:
+        case'menu':
+            # Menu globals
+            global bg_y
 
-        # Background movement
-        bg_y -= bg_dy
-        if bg_y <= -720:
-            bg_y = 0
+            # Background movement
+            bg_y -= bg_dy
+            if bg_y <= -720:
+                bg_y = 0
 
-        # Button color response
-        for button in buttons_dict[menu_screen]:
-                if button.collidepoint(pg.mouse.get_pos()):
-                    button.image = 'button_light'
+            # Button color response
+            for button in buttons_dict[menu_screen]:
+                    if button.collidepoint(pg.mouse.get_pos()):
+                        button.image = 'button_light'
+                    else:
+                        button.image = 'button_dark'
+        
+        case 'level':
+            player.hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
+
+            # Tiles
+
+            for tile in tiles_animate:
+                tile.scale = 2
+                tile.animate()
+
+            # Flipping
+
+            if not player.static:
+                if pg.mouse.get_pos()[0] >= player.x:
+                    player.flip_x = True
                 else:
-                    button.image = 'button_dark'
-    
-    elif scene == 'level':
-        global player_hitbox
-        player_hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
+                    player.flip_x = False
 
-        # Tiles
+            # Player Movement
 
-        for tile in tiles_animate:
-            tile.scale = 2
-            tile.animate()
+            if not (player.dashing or player.attacking):
+                    player.hitbox.y -= player.dy * player.time_mod # gravity
 
-        # Flipping
+            if player.dy > -48 * player.time_mod:
+                player.dy -= gravity * player.time_mod
+            
+            if player.dx != 0 or player.static or player.attacking:
+                player.hitbox.x += player.dx * player.time_mod
 
-        if not player.static:
-            if pg.mouse.get_pos()[0] >= player.x:
-                player.flip_x = True
             else:
-                player.flip_x = False
+                if keyboard.a: #or joystick.get_axis(0) < -joystick_drift: TODO
+                    player.hitbox.x -= 10 * player.time_mod
 
-        # Player Movement
-
-        if not player.dashing:
-                player_hitbox.y -= player.dy * player.time_mod # gravity
-
-        if player.dy > -48 * player.time_mod:
-            player.dy -= gravity * player.time_mod
-        
-        if player.dx != 0 or player.static:
-            player_hitbox.x += player.dx * player.time_mod
-
-        else:
-            if keyboard.a: #or joystick.get_axis(0) < -joystick_drift: TODO
-                player_hitbox.x -= 10 * player.time_mod
-
-                reverse = False
-                if player.flip_x:
-                    reverse = True
-
-                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
-                
-            if keyboard.d: #or joystick.get_axis(0) > joystick_drift: TODO
-                player_hitbox.x += 10 * player.time_mod
-
-                reverse = True
-                if player.flip_x:
                     reverse = False
-                player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                    if player.flip_x:
+                        reverse = True
+
+                    player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                    
+                if keyboard.d: #or joystick.get_axis(0) > joystick_drift: TODO
+                    player.hitbox.x += 10 * player.time_mod
+
+                    reverse = True
+                    if player.flip_x:
+                        reverse = False
+                    player_animate('walk', reverse=reverse) # reversing list gets rid of moonwalking effect
+                
+                if not (keyboard.a or keyboard.d): # (joystick.get_axis(0) < -joystick_drift or joystick.get_axis(0) > joystick_drift): TODO
+                    player_animate('idle')
+
+            # Player Collision Detection
+
+            down_boost = False
+            for tile in tiles_clip: # up and down
+                counter = 0
+                while tile.colliderect(player.hitbox):
+                    counter += 1
+                    if counter > 64:
+                        break
+
+                    if player.hitbox.top < tile.top and 'u' in tile.image: # TODO MAYBE CHANGE TO <=
+                        player.hitbox.y -= 1
+                        player_ground_reset() # change various player attributes when touching the ground
+
+                    elif player.hitbox.bottom > tile.bottom and 'd' in tile.image:
+                        player.hitbox.y += 1
+                        down_boost = True
+                
+                counter = 0
+                while tile.colliderect(player.hitbox): # left and right
+                    counter += 1
+                    if counter > 64:
+                        player_reset()
+                        break
+
+                    if player.hitbox.left < tile.right and 'r' in tile.image.replace('water', ''):
+                        player.hitbox.x += 1
+                        #player.dx = 0
+                        player.dashing = False
+
+                    elif player.hitbox.right > tile.left and 'l' in tile.image.replace('tile', ''):
+                        player.hitbox.x -= 1
+                        #player.dx = 0
+                        player.dashing = False
+
+            # Hazards and Triggers
+
+            for hazard in hazards:
+                if hazard.colliderect(player.hitbox) and player.alive: # hazard collision detection
+                    player_die()
+
+                counter = 0
+                while hazard.colliderect(player.hitbox):
+                    counter += 1
+                    if counter > 64:
+                        break
+
+                    if player.hitbox.top < hazard.top and 'water' in hazard.image:
+                        player.hitbox.y -= 1
+                        player_ground_reset()
             
-            if not (keyboard.a or keyboard.d): # (joystick.get_axis(0) < -joystick_drift or joystick.get_axis(0) > joystick_drift): TODO
-                player_animate('idle')
-
-        # Player Collision Detection
-
-        down_boost = False
-        for tile in tiles_clip: # up and down
-            counter = 0
-            while tile.colliderect(player_hitbox):
-                counter += 1
-                if counter > 64:
-                    break
-
-                if player_hitbox.top < tile.top and 'u' in tile.image: # TODO MAYBE CHANGE TO <=
-                    player_hitbox.y -= 1
-                    player_ground_reset() # change various player attributes when touching the ground
-
-                elif player_hitbox.bottom > tile.bottom and 'd' in tile.image:
-                    player_hitbox.y += 1
-                    down_boost = True
+            for trigger in triggers:
+                if trigger.rect.colliderect(player.hitbox) and trigger.name not in used_triggers:
+                    use_trigger(trigger.name)
             
-            counter = 0
-            while tile.colliderect(player_hitbox): # left and right
-                counter += 1
-                if counter > 64:
-                    player_reset()
-                    break
+            if down_boost and player.dy > 0:
+                player.dy -= player.dy * 1.1
 
-                if player_hitbox.left < tile.right and 'r' in tile.image.replace('water', ''):
-                    player_hitbox.x += 1
-                    #player.dx = 0
-                    player.dashing = False
+            switch_screen = True
+            if player.hitbox.centerx > WIDTH:
+                player.hitbox.x -= WIDTH
+                player.mx += 1
+            elif player.hitbox.centerx < 0:
+                player.hitbox.x += WIDTH
+                player.mx -= 1
+            elif player.hitbox.centery > HEIGHT:
+                player.hitbox.y -= HEIGHT
+                player.my -= 1
+            elif player.hitbox.centery < 0:
+                player.hitbox.y += HEIGHT
+                player.my += 1
+            else:
+                switch_screen = False
+            
+            if switch_screen:
+                player.pos = player.hitbox.center
+                switch_level_screen()
 
-                elif player_hitbox.right > tile.left and 'l' in tile.image.replace('tile', ''):
-                    player_hitbox.x -= 1
-                    #player.dx = 0
-                    player.dashing = False
+            #global attacks
+            for attack in attacks:
+                attack.move_in_direction(5 * player.time_mod)
+                attack.scale = True
+                if attack.collidelistall_pixel(tiles_clip):
+                    attacks.remove(attack)
 
-        # Hazards and Triggers
+            player.pos = (player.hitbox.x + 30, player.hitbox.y)
+            player.scale = 2
+            player.animate()
 
-        for hazard in hazards:
-            if hazard.colliderect(player_hitbox) and player.alive: # hazard collision detection
-                player_die()
-
-            counter = 0
-            while hazard.colliderect(player_hitbox):
-                counter += 1
-                if counter > 64:
-                    break
-
-                if player_hitbox.top < hazard.top and 'water' in hazard.image:
-                    player_hitbox.y -= 1
-                    player_ground_reset()
-        
-        for trigger in triggers:
-            if trigger.rect.colliderect(player_hitbox) and trigger.name not in used_triggers:
-                use_trigger(trigger.name)
-        
-        if down_boost and player.dy > 0:
-            player.dy -= player.dy * 1.1
-
-        switch_screen = True
-        if player_hitbox.centerx > WIDTH:
-            player_hitbox.x -= WIDTH
-            player.mx += 1
-        elif player_hitbox.centerx < 0:
-            player_hitbox.x += WIDTH
-            player.mx -= 1
-        elif player_hitbox.centery > HEIGHT:
-            player_hitbox.y -= HEIGHT
-            player.my -= 1
-        elif player_hitbox.centery < 0:
-            player_hitbox.y += HEIGHT
-            player.my += 1
-        else:
-            switch_screen = False
-        
-        if switch_screen:
-            player.pos = player_hitbox.center
-            switch_level_screen()
-
-        for attack in attacks:
-            attack.move_in_direction(5 * player.time_mod)
-            attack.scale = True
-
-        player.pos = (player_hitbox.x + 30, player_hitbox.y)
-        player.scale = 2
-        player.animate()
-
-        for attack in attacks:
-            attack.animate()
+            for attack in attacks:
+                attack.animate()
 
 
 # DRAW
@@ -593,7 +600,7 @@ def draw():
             screen.draw.text(text[0], center=(text[1] * 32 + 16, text[2] * 32 + 16), fontname='vcr_ocd_mono', fontsize=32, color=col)
 
         # Entities
-        #screen.draw.rect(player_hitbox, 'RED') # only for debug
+        #screen.draw.rect(player.hitbox, 'RED') # only for debug
         player.draw()
 
         for attack in attacks:
