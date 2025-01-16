@@ -91,6 +91,7 @@ def init_level(num):
     attacks = []
     used_triggers = set()
 
+    player.hitbox = Rect((player.x - 30, player.y - 0), (60, 48))
     player.state = None
     player.alive = True
     player.can_dash = True
@@ -177,6 +178,8 @@ def use_trigger(name):
 
     if name == 'overclock':
         player.can_overclock = True
+    elif name == 'attack':
+        player.can_attack = True
 
 # Player Functions
 
@@ -201,7 +204,7 @@ def player_animate(arg: str, reverse=False) -> None:
                 player.images = [f'microwave_{arg}_{x}' for x in range(0, frames)]
             
 def player_reset():
-    player.pos = player.spawn
+    player.hitbox.center = player.spawn
     player_ground_reset()
 
 def player_ground_reset():
@@ -359,7 +362,7 @@ def on_key_down(key, unicode):
             player.dy = 18
         
         elif key == keys.S and player.can_vertical_reset and not player.static:
-            if player.dy > -32:
+            if player.dy > -16:
                 player.dy -= 32
             else:
                 player.dy = -48
@@ -460,7 +463,7 @@ def update():
                     if counter > 64:
                         break
 
-                    if player.hitbox.top < tile.top and 'u' in tile.image: # TODO MAYBE CHANGE TO <=
+                    if player.hitbox.top + 20 < tile.top and 'u' in tile.image: # TODO MAYBE CHANGE TO <=
                         player.hitbox.y -= 1
                         player_ground_reset() # change various player attributes when touching the ground
 
