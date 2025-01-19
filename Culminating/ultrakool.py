@@ -19,7 +19,7 @@ class Player(Actor): # Player is a child class of Actor
         self.time_mod, self.time_mod_simple = 1, 1
         self.input = True
         self.visible = True
-        self.lives = True # renamed from alive to lives for compatibility with enemies
+        self.alive = True
 
         self.spawn = (0, 0)
         self.dx, self.dy = 0, 0
@@ -64,7 +64,7 @@ class Player(Actor): # Player is a child class of Actor
         self.dash_cancel()
         self.overclock_cancel()
 
-        self.lives = False
+        self.alive = False
         self.input = False
         self.switch_animation('death')
 
@@ -78,12 +78,13 @@ class Player(Actor): # Player is a child class of Actor
 
     def respawn(self):
         '''Respawns the player.'''
-        player.lives = True
+        player.alive = True
         player.input = True
         self.hitbox.center = self.spawn
+        reset_enemies(current_scene) # respawn all enemies in teh scene
 
         for enemy in current_scene.enemies:
-            if player.hitbox.colliderect(enemy.hitbox):
+            if player.hitbox.colliderect(enemy.hitbox) and enemy.can_hurt:
                 enemy.die() # ensures player doesn't die on respawn
 
         touch_ground(self)
@@ -133,7 +134,10 @@ class Player(Actor): # Player is a child class of Actor
         self.gravity, self.input = False, False
         self.can_attack = False
 
-        new_attack = Actor('attack_0', self.hitbox.center)
+        self.pos = self.hitbox.center
+        new_attack = Actor('attack_0')
+        new_attack.scale = 1.5
+        new_attack.pos = self.hitbox.center
         new_attack.images = [f'attack_{i}' for i in range(5)]
         new_attack.direction = self.direction_to(pos)
         new_attack.angle = self.direction_to(pos) + 180
@@ -171,14 +175,25 @@ class Player(Actor): # Player is a child class of Actor
         self.overclock_cancel() # make dashing and overclocking exclusive
 
         dash_duration = 0.05 / self.time_mod_simple # no reason to multiply by time_mod_simple unless functionality is changed later
-        if keyboard.a and not keyboard.d:
-            self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear')
-        elif keyboard.d and not keyboard.a:
-            self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear')
-        elif self.flip_x:
-            self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear')
+
+        if controller_mode:
+            if joystick.get_axis(0) < -controller_deadzone:
+                self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear') # left
+            elif joystick.get_axis(0) > controller_deadzone:
+                self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear') # right
+            elif self.flip_x:
+                self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear') # right
+            else:
+                self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear') # left
         else:
-            self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear')
+            if keyboard.a and not keyboard.d:
+                self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear') # left
+            elif keyboard.d and not keyboard.a:
+                self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear') # right
+            elif self.flip_x:
+                self.animation_dash = animate(self, dx=55, duration=dash_duration, tween='linear') # right
+            else:
+                self.animation_dash = animate(self, dx=-55, duration=dash_duration, tween='linear') # left
 
         clock.schedule(self.dash_mid, dash_duration * 2)
         clock.schedule(self.dash_end, dash_duration * 5)
@@ -225,6 +240,8 @@ class Player(Actor): # Player is a child class of Actor
             tile.fps *= self.time_mod_simple
         for attack in current_scene.attacks:
             attack.fps *= self.time_mod_simple
+        for enemy_attack in current_scene.enemy_attacks:
+            enemy_attack.fps *= self.time_mod_simple
         for explosion in current_scene.explosions:
             explosion.fps *= self.time_mod_simple
         for enemy in current_scene.enemies:
@@ -238,6 +255,8 @@ class Player(Actor): # Player is a child class of Actor
             tile.fps /= self.time_mod_simple
         for attack in current_scene.attacks:
             attack.fps /= self.time_mod_simple
+        for enemy_attack in current_scene.enemy_attacks:
+            enemy_attack.fps /= self.time_mod_simple
         for explosion in current_scene.explosions:
             explosion.fps /= self.time_mod_simple
         for enemy in current_scene.enemies:
@@ -317,7 +336,6 @@ class Slime(Actor): # Slime is a child class of Actor
 
     def die(self):
         '''Trigger death animation for the slime.'''
-        self.gravity = False
         self.can_hurt = False
         self.images = [f'slime_die_{i}' for i in range(5)] # extra image in the list used to trigger other actions
         self.fps = 8 * player.time_mod_simple
@@ -334,18 +352,50 @@ class Slime(Actor): # Slime is a child class of Actor
         self.can_attack = True
         self.idle()
     
+    def projectile_attack(self):
+        '''Have the slime shoot a projectile towards the player.'''
+        self.images = [f'slime_hurt_{i}' for i in range(6)] # extra image in the list used to trigger other actions
+        self.fps = 8 * player.time_mod_simple
+        self.can_attack = False
+        self.face_player()
+
+        new_attack = Actor('enemy_attack_0')
+        new_attack.scale = 1.2
+        new_attack.pos = self.hitbox.center
+        new_attack.images = [f'enemy_attack_{i}' for i in range(5)]
+        new_attack.direction = self.direction_to(player.hitbox.center)
+        new_attack.angle = self.direction_to(player.hitbox.center) + 180
+        current_scene.enemy_attacks.append(new_attack)
+
+    def projectile_attack_cooldown(self):
+        '''Allow the slime to projectile attack again.'''
+        self.can_attack = True
+        self.idle()
+
     def step(self):
-        '''Movement logic for the slime.'''
-        move_images = [f'slime_move_{i}' for i in range(4)]
+        '''Movement logic towards the player for the slime.'''
+        move_images = [f'slime_move_{i}' for i in range(4)] # even if the slime can't actually move, the animation will still display to indicate aggression
         if self.images != move_images:
             self.images = move_images
             self.fps = 8 * player.time_mod_simple
         
         self.face_player()
 
-        if self.flip_x:
+        right_collide = False
+        for tile in (tiles_clip + tiles_back + hazards): # using all hazards instead of just water so that enemies can wander into spike pits
+            if tile.collidepoint(self.hitbox.right + 16, self.hitbox.bottom + 48) or tile.collidepoint(self.hitbox.right + 16, self.hitbox.bottom + 16):
+                right_collide = True
+                break
+
+        left_collide = False
+        for tile in (tiles_clip + tiles_back + hazards): # using all hazards instead of just water so that enemies can wander into spike pits
+            if tile.collidepoint(self.hitbox.left - 16, self.hitbox.bottom + 48) or tile.collidepoint(self.hitbox.left - 16, self.hitbox.bottom + 16):
+                left_collide = True
+                break
+
+        if self.flip_x and right_collide:
             self.hitbox.x -= -5 * player.time_mod
-        else:
+        elif not self.flip_x and left_collide:
             self.hitbox.x -= 5 * player.time_mod
 
 
@@ -364,7 +414,7 @@ def init_menu():
 
 def init_level():
     '''Initializes the current level.'''
-    global menu, game_paused, current_scene, bg_levels, bg_y, bg_dy, attacks, used_triggers, player, level_beat, level_end_screen
+    global menu, game_paused, current_scene, bg_levels, bg_y, bg_dy, attacks, used_triggers, player, clouds, clouds_2, level_beat, level_end_screen
 
     if menu: # this makes sure music doesn't restart after every death in hard mode
         music.play(f'level_{level}')
@@ -377,26 +427,37 @@ def init_level():
     used_triggers = set()
     
     player = Player()
-    if level == 0: # level 1 prohibits some functionality to start
-        player.can_attack, player.can_overclock = False, False
+    clouds, clouds_2 = Actor('tileset_clouds', midleft=(0, HEIGHT / 4)), Actor('tileset_clouds', midleft=(0, HEIGHT / 4))
+
+    if level == 0:
+        player.can_attack, player.can_overclock = False, False # level 1 prohibits some functionality to start
+
+        if controller_mode: # change the tutorial a bit if controller mode is activated
+            tutorial_controller
+        else:
+            tutorial_keyboard
 
     current_scene = levels[level][0]
     switch_level_scene(current_scene)
     player.respawn()
 
     for scene in levels[level]: # configure level enemies
-        scene.enemies = []
-        for enemy in scene.enemies_raw:
-            if enemy[0] == 'slime':
-                new_enemy = Slime(enemy[1], enemy[2])
+        reset_enemies(scene)
 
-            elif enemy[0] == 'mushroom': # TODO
-                pass
+def reset_enemies(scene):
+    '''Respawns all enemies in a given scene.'''
+    scene.enemies = []
+    for enemy in scene.enemies_raw:
+        if enemy[0] == 'slime':
+            new_enemy = Slime(enemy[1], enemy[2])
 
-            elif enemy[0] == 'spider': # TODO
-                pass
+        elif enemy[0] == 'mushroom': # TODO
+            pass
 
-            scene.enemies.append(new_enemy)
+        elif enemy[0] == 'spider': # TODO
+            pass
+
+        scene.enemies.append(new_enemy)
 
 
 def check_level_scene(mx: int, my: int) -> Scene:
@@ -547,12 +608,12 @@ def movement(entity):
 
             if entity.hitbox.left < tile.right and 'r' in tile.image.replace('water', ''):
                 entity.hitbox.x += 1
-                if entity == player and player.lives:
+                if entity == player and player.alive:
                     entity.dash_cancel()
 
             elif entity.hitbox.right > tile.left and 'l' in tile.image.replace('tile', ''):
                 entity.hitbox.x -= 1
-                if entity == player and player.lives:
+                if entity == player and player.alive:
                     entity.dash_cancel()
 
     if down_boost:
@@ -561,10 +622,12 @@ def movement(entity):
     # Hazards
 
     for hazard in hazards:
-        if entity != player and 'water' in hazard.image: # this allows enemies to survive on water
-            pass
-        elif hazard.colliderect(entity.hitbox) and entity.lives: # hazard collision kills the entity
-            entity.die()
+        if hazard.colliderect(entity.hitbox): # hazard collision kills the entity
+            if entity != player:
+                if 'water' not in hazard.image and entity.can_hurt: # this allows enemies to survive on water
+                    entity.die()
+            elif entity.alive:
+                entity.die()
 
         counter = 0
         while hazard.colliderect(entity.hitbox) and 'water' in hazard.image:
@@ -624,13 +687,53 @@ def level_end_2():
     if sfx: sounds.menu_confirm.play()
 
 
+# Controller Button Checks
+
+def check_buttons_down() -> list:
+    '''Manually check for changes in controller button states and return pressed buttons.'''
+    buttons_down = []
+
+    for i in range(8):
+        if joystick.get_button(i) == True and controller_buttons[i] == False:
+            buttons_down.append(i)
+            controller_buttons[i] = True
+    
+    if joystick.get_axis(4) > controller_deadzone and controller_buttons[8] == False:
+        buttons_down.append(8)
+        controller_buttons[8] = True
+    if joystick.get_axis(5) > controller_deadzone and controller_buttons[9] == False:
+        buttons_down.append(9)
+        controller_buttons[9] = True
+
+    return buttons_down
+
+
+def check_buttons_up() -> list:
+    '''Manually check for changes in controller button states and return released buttons.'''
+    buttons_up = []
+
+    for i in range(8):
+        if joystick.get_button(i) == False and controller_buttons[i] == True:
+            buttons_up.append(i)
+            controller_buttons[i] = False
+    
+    if joystick.get_axis(4) <= controller_deadzone and controller_buttons[8] == True:
+        buttons_up.append(8)
+        controller_buttons[8] = False
+    if joystick.get_axis(5) <= controller_deadzone and controller_buttons[9] == True:
+        buttons_up.append(9)
+        controller_buttons[9] = False
+
+    return buttons_up
+
+
 # SETTINGS
 
 # Standard Settings
 os.environ["SDL_VIDEO_CENTERED"] = "1" # center the window
 WIDTH, HEIGHT = 1280, 704 # game resolution: 1280 x 704
 TITLE = "ULTRAKOOL"
-controller_deadzone = 0.1
+controller_deadzone = 0.5 # not changeable in-game
 
 # Saved Settings
 instant_respawn, hard_mode, debug_mode, sfx, levels_unlocked = read_settings()
@@ -651,11 +754,11 @@ level_beat_box_up.pos, level_beat_box_down.pos = (WIDTH / 2, HEIGHT / 2 - 50), (
 
 # Controller Support
 controller_mode = False
-if pygame.joystick.get_count() == 1:
-    if pygame.joystick.Joystick(0).get_numaxes() >= 2:
+if pg.joystick.get_count() == 1:
+    if pg.joystick.Joystick(0).get_numaxes() >= 6 and pg.joystick.Joystick(0).get_numbuttons() >= 8:
         controller_mode = True
         joystick = pg.joystick.Joystick(0)
-        pygame.mouse.set_visible(False) # hide cursor in controller mode
+        controller_buttons = [False for i in range(10)] # save the states of controller buttons
 
 # Buttons
 buttons_main = [Actor('button_dark', center=(640, 300 + 150 * i)) for i in range(3)] # main menu
@@ -698,7 +801,6 @@ def on_mouse_down(pos, button):
                             init_level()
                     
                     elif menu_scene == 'settings':
-                        if sfx: sounds.menu_click.play()
                         if i == 0:
                             instant_respawn = 0 if instant_respawn else 1
                         elif i == 1:
@@ -717,6 +819,8 @@ def on_mouse_down(pos, button):
                                 music.set_volume(0)
                             else:
                                 music.set_volume(round(music.get_volume() + 0.2, 1))
+                        
+                        if sfx: sounds.menu_click.play() # moved to the end of the conditional to align with the state of sfx after the button press
 
     else:
         global game_paused
@@ -726,7 +830,7 @@ def on_mouse_down(pos, button):
                     if sfx: sounds.menu_back.play()
                     if i == 0:
                         game_paused = False
-                        player.input = True if player.lives else False
+                        player.input = True if player.alive else False
                     elif i == 1:
                         init_level()
                     elif i == 2:
@@ -743,7 +847,6 @@ def on_mouse_down(pos, button):
 def on_mouse_up(pos, button):
     if menu:
         pass
-
     else:
         if button == mouse.RIGHT and player.time_mod_simple != 1: # canceled the condition for if player.input == True so overclocking can always be ended
             player.overclock_end()
@@ -757,6 +860,7 @@ def on_key_down(key, unicode):
     if key == keys.K:
         global controller_mode
         controller_mode = False
+        pygame.joystick.quit()
         pygame.mouse.set_visible(True)
 
     if menu:
@@ -776,12 +880,12 @@ def on_key_down(key, unicode):
                 init_menu()
             elif game_paused:
                 game_paused = False
-                player.input = True if player.lives else False
+                player.input = True if player.alive else False
             elif not game_paused and player.input:
                 game_paused = True
                 player.overclock_end()
     
-        elif key == keys.R and not player.lives and not game_paused:
+        elif key == keys.R and not player.alive and not game_paused:
             if sfx: sounds.respawn.play()
 
             if hard_mode:
@@ -802,15 +906,92 @@ def on_key_down(key, unicode):
 
 def on_key_up(key):
     pass
-
+    
 
 def on_music_end():
     pass
 
 
+# Controller Event Handlers
+
+def on_button_down(buttons):
+    '''Copied and modified on_key_down. Copying on_mouse_down was unfortunately not implemented.'''
+    if menu:
+        global menu_scene
+        if 1 in buttons: # B on Xbox
+            if sfx: sounds.menu_back.play()
+
+            if menu_scene == 'levels':
+                menu_scene = 'main'
+            elif menu_scene == 'settings':
+                menu_scene = 'main'
+                write_settings()
+
+    else:
+        # From on_key_down
+
+        global game_paused
+        if 7 in buttons: # start on Xbox
+            if game_paused:
+                game_paused = False
+                player.input = True if player.alive else False
+            elif not game_paused and player.input:
+                game_paused = True
+                player.overclock_end()
+    
+        elif 3 in buttons and not player.alive and not game_paused: # Y on Xbox
+            if sfx: sounds.respawn.play()
+
+            if hard_mode:
+                init_level() # reset the level entirely in hard mode
+            else:
+                player.respawn()
+
+        elif player.input:
+            if 0 in buttons and player.can_jump and player.jumps > 0: # A on Xbox
+                player.jump()
+            
+            elif 1 in buttons and player.can_boost: # B on Xbox
+                player.boost()
+            
+            elif 2 in buttons and player.can_dash: # X on Xbox
+                player.dash()
+        elif 1 in buttons and level_end_screen: # B on Xbox
+            init_menu()
+        
+        # From on_mouse_down
+
+        if player.input:
+            if 9 in buttons and player.can_attack: # right trigger on Xbox
+                if not (-controller_deadzone < joystick.get_axis(2) < controller_deadzone) or not (-controller_deadzone < joystick.get_axis(3) < controller_deadzone):
+                    pos = (player.hitbox.centerx + 10 * joystick.get_axis(2), player.hitbox.centery + 10 * joystick.get_axis(3))
+                elif player.flip_x:
+                    pos = (player.hitbox.centerx + 10, player.hitbox.centery)
+                else:
+                    pos = (player.hitbox.centerx - 10, player.hitbox.centery)
+
+                player.attack(pos)
+
+            elif 8 in buttons and player.can_overclock: # left trigger on Xbox
+                player.overclock()
+
+def on_button_up(buttons):
+    if menu:
+        pass
+    else:
+        if 8 in buttons and player.time_mod_simple != 1: # left trigger on Xbox
+            player.overclock_end()
+
+
 # UPDATE
 
 def update():
+    if controller_mode: # trigger controller response
+        buttons_down, buttons_up = check_buttons_down(), check_buttons_up()
+        on_button_down(buttons_down)
+        on_button_up(buttons_up)
+        pg.mouse.set_visible(False) # hide cursor in controller mode by default
+
     if menu:
         global bg_y
 
@@ -828,10 +1009,13 @@ def update():
             else:
                 button.image = 'button_dark'
         
+        pg.mouse.set_visible(True) # show cursor in menus
+        
     else:
         global game_paused
         if game_paused:
             player.input = False
+            pg.mouse.set_visible(True) # show cursor in menus
 
             # Button color response
             for button in buttons_pause:
@@ -844,10 +1028,21 @@ def update():
 
         if player.input:
             # Flipping
-            if pg.mouse.get_pos()[0] >= player.x:
-                player.flip_x = True
-            else:
-                player.flip_x = False
+            if controller_mode: # flip player based on joystick positions
+                if joystick.get_axis(2) > controller_deadzone:
+                    player.flip_x = True
+                elif joystick.get_axis(2) < -controller_deadzone:
+                    player.flip_x = False
+                elif joystick.get_axis(0) > controller_deadzone:
+                    player.flip_x = True
+                elif joystick.get_axis(0) < -controller_deadzone:
+                    player.flip_x = False
+
+            else: # flip player based on mouse position
+                if pg.mouse.get_pos()[0] >= player.x:
+                    player.flip_x = True
+                else:
+                    player.flip_x = False
 
             # Walking
             walking = False
@@ -923,24 +1118,28 @@ def update():
                 current_scene.enemies.remove(enemy)
             elif enemy.image == 'slime_attack_5':
                 enemy.attack_cooldown()
-            elif enemy.image == 'slime_hurt_4':
-                enemy.hurt_cooldown()
+            elif enemy.image == 'slime_hurt_5':
+                enemy.projectile_attack_cooldown() # projectile attack instead of hurting
+                # enemy.hurt_cooldown() not used as enemies have only one life
 
             # Automatic movement
             if enemy.can_hurt and enemy.can_attack:
-                if enemy.hitbox.left - 32 < player.hitbox.centerx < enemy.hitbox.right + 32 and enemy.hitbox.top - 128 < player.hitbox.centery < enemy.hitbox.bottom + 16:
+                if enemy.hitbox.left - 32 < player.hitbox.centerx < enemy.hitbox.right + 32 and enemy.hitbox.top - 128 < player.hitbox.centery < enemy.hitbox.bottom + 32:
                     enemy.attack()
-                elif enemy.hitbox.left - 512 < player.hitbox.centerx < enemy.hitbox.right + 512 and enemy.hitbox.top - 768 < player.hitbox.centery < enemy.hitbox.bottom + 16:
-                    enemy.step()
+                elif enemy.hitbox.left - 960 < player.hitbox.centerx < enemy.hitbox.right + 960 and enemy.hitbox.top - 768 < player.hitbox.centery < enemy.hitbox.bottom + 64:
+                    if random.randint(1, 120) == 77:
+                        enemy.projectile_attack()
+                    else:
+                        enemy.step()
                 elif 'move' in enemy.image:
                     enemy.idle()
 
 
-        # Attacks
+        # Player Attacks
 
         outer_loop_break = False
         for attack in current_scene.attacks:
-            attack.move_in_direction(10 * player.time_mod)
+            attack.move_in_direction(15 * player.time_mod)
             attack.scale = 1.5
             attack.animate()
 
@@ -964,6 +1163,25 @@ def update():
                 current_scene.attacks.remove(attack)
                 create_explosion(attack.x + 10, attack.y)
                 break
+        
+        # Enemy Attacks
+        for enemy_attack in current_scene.enemy_attacks:
+            enemy_attack.move_in_direction(10 * player.time_mod)
+            enemy_attack.scale = 1.2
+            enemy_attack.animate()
+
+            if enemy_attack.collide_pixel(player):
+                current_scene.enemy_attacks.remove(enemy_attack)
+                create_explosion(enemy_attack.x + 10, enemy_attack.y)
+
+                if player.alive:
+                    player.die()
+                break
+
+            if enemy_attack.collidelistall_pixel(tiles_clip + tiles_animate):
+                current_scene.enemy_attacks.remove(enemy_attack)
+                create_explosion(enemy_attack.x + 10, enemy_attack.y)
+                break
 
         # Enemy Collision
         for enemy in current_scene.enemies:
@@ -986,7 +1204,12 @@ def update():
         
         if level_beat:
             player.input, player.gravity = False, False
+            player.alive = True # in case the player dies while beating the level
             game_paused = False
+        
+        clouds.scale, clouds_2.scale = 4, 4
+        clouds.left = (-(player.mx * 1280 + player.hitbox.centerx) / 64) % 1280
+        clouds_2.left = (-(player.mx * 1280 + player.hitbox.centerx) / 64) % 1280 - 1440
 
 
 # DRAW
@@ -1009,7 +1232,8 @@ def draw():
                 screen.draw.text(('LEVELS', 'SETTINGS', 'QUIT')[i], center=buttons_main[i].pos, fontname='roboto_thin', fontsize=75, color=('white' if buttons_main[i].image == 'button_dark' else 'black'))
             
             if controller_mode:
-                screen.draw.text('CONTROLLER MODE ENABLED. PRESS K AT ANY POINT TO PERMANANTLY DISABLE.', center=(WIDTH/2, 200), fontname='vcr_ocd_mono', fontsize=20)
+                screen.draw.text('CONTROLLER MODE ENABLED. PRESS K AT ANY POINT TO PERMANANTLY DISABLE.', center=(WIDTH/2, 190), fontname='vcr_ocd_mono', fontsize=20)
+                screen.draw.text('MENU NAVIGATION IS STILL CONTROLLED BY THE MOUSE.', center=(WIDTH/2, 210), fontname='vcr_ocd_mono', fontsize=15)
                 # Note: due to limited event functionality in Pygame Zero, button presses are more complicated
         
         elif menu_scene == 'levels': # levels menu
@@ -1029,7 +1253,7 @@ def draw():
                              f'UNLOCKED LEVELS: {levels_unlocked + 1}',
                              f'HARD MODE: {'ON' if hard_mode else 'OFF'}',
                              f'SOUND EFFECTS: {'ON' if sfx else 'OFF'}',
-                             f'MUSIC VOLUME: {music.get_volume():.1f}']
+                             f'MUSIC VOLUME: {int(round(music.get_volume(), 1) * 100)}%']
             
             for i, button in enumerate(buttons_settings):
                 button.draw()
@@ -1040,11 +1264,15 @@ def draw():
     else:
         # Behind Entities
         screen.blit(bg_levels, (0, 0))
+
+        if not level_beat:
+            clouds.draw()
+            clouds_2.draw()
         
         for tile in (tiles_back + tiles_animate):
             tile.draw()
         
-        for tile in (tiles_clip):
+        for tile in tiles_clip:
             tile.draw()
 
         if not level_beat:
@@ -1063,6 +1291,8 @@ def draw():
             # Attacks
             for attack in current_scene.attacks:
                 attack.draw()
+            for enemy_attack in current_scene.enemy_attacks:
+                enemy_attack.draw()
 
             # In Front of Entities
             if not debug_mode:
@@ -1086,10 +1316,10 @@ def draw():
                 screen.draw.text(f'SIMPLE TIME MOD: {player.time_mod_simple:.1f}', center=hud_box_overclock_simple.center, fontname='vcr_ocd_mono', fontsize=16)
 
             # Death Screen
-            if not player.lives and not game_paused:
+            if not player.alive and not game_paused:
                 hud_box_death_screen.draw()
                 hud_box_death_screen.draw() # not the cleanest but drawing twice doubles the opacity
-                screen.draw.text('PRESS R TO RESPAWN', center=hud_box_death_screen.pos, fontname='vcr_ocd_mono', fontsize=60)
+                screen.draw.text(f'PRESS {'Y' if controller_mode else 'R'} TO RESPAWN', center=hud_box_death_screen.pos, fontname='vcr_ocd_mono', fontsize=60)
 
             if game_paused:
                 for i, button in enumerate(buttons_pause):
@@ -1107,8 +1337,10 @@ def draw():
             level_beat_box_down.draw()
             level_beat_box_down.draw() # not the cleanest but drawing twice doubles the opacity
 
-            screen.draw.text(f'LEVEL {level + 1} BEAT', center=level_beat_box_up.pos, fontname='vcr_ocd_mono', fontsize=80)
-            screen.draw.text('ESC TO CONTINUE', center=level_beat_box_down.pos, fontname='vcr_ocd_mono', fontsize=35)
+            screen.draw.text(f'END OF LEVEL {level + 1}', center=level_beat_box_up.pos, fontname='vcr_ocd_mono', fontsize=80)
+            screen.draw.text(f'{'B' if controller_mode else 'ESC'} TO CONTINUE', center=level_beat_box_down.pos, fontname='vcr_ocd_mono', fontsize=35)
+            # TODO time:
+            # TODO enemies killed:
 
 
 # START
