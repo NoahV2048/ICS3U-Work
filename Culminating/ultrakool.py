@@ -77,6 +77,8 @@ class Player(Actor): # Player is a child class of Actor
                 init_level()
             else:
                 self.respawn()
+        else:
+            if sfx: sounds.hurt.play()
 
     def respawn(self):
         '''Respawns the player.'''
@@ -134,6 +136,7 @@ class Player(Actor): # Player is a child class of Actor
         '''Attack a position specified by a mouse click.'''
         self.overclock_cancel()
         self.dash_cancel()
+        if sfx: sounds.player_attack.play()
 
         self.switch_animation('attack')
         self.gravity, self.input = False, False
@@ -177,6 +180,7 @@ class Player(Actor): # Player is a child class of Actor
         self.can_dash = False
         self.dy = 0
 
+        if sfx: sounds.swoosh.play()
         self.overclock_cancel() # make dashing and overclocking exclusive
 
         dash_duration = 0.05 / self.time_mod_simple # no reason to multiply by time_mod_simple unless functionality is changed later
@@ -342,6 +346,7 @@ class Slime(Actor): # Slime is a child class of Actor
 
     def die(self):
         '''Trigger death animation for the slime.'''
+        if sfx: sounds.enemy_die.play()
         self.can_hurt = False
         self.images = [f'slime_die_{i}' for i in range(5)] # extra image in the list used to trigger other actions
         self.fps = 8 * player.time_mod_simple
@@ -364,6 +369,7 @@ class Slime(Actor): # Slime is a child class of Actor
         self.fps = 8 * player.time_mod_simple
         self.can_attack = False
         self.face_player()
+        if sfx: sounds.laser.play()
 
         new_attack = Actor('enemy_attack_0')
         new_attack.scale = 1.2
@@ -554,6 +560,7 @@ def create_explosion(x, y):
     new_explosion.fps = 14 * player.time_mod_simple
     new_explosion.scale = 2
     current_scene.explosions.append(new_explosion)
+    if sfx: sounds.hit.play()
 
 
 def touch_ground(entity):
@@ -944,11 +951,14 @@ def on_key_down(key, unicode):
         if key == keys.ESCAPE:
             if level_end_screen:
                 init_menu()
+                if sfx: sounds.menu_back.play()
             elif game_paused:
                 game_paused = False
                 player.input = True if player.alive else False
+                if sfx: sounds.menu_back.play()
             elif not game_paused and player.input:
                 game_paused = True
+                if sfx: sounds.menu_back.play()
                 player.overclock_end()
     
         elif key == keys.R and not player.alive and not game_paused:
@@ -1060,13 +1070,15 @@ def on_button_up(buttons):
 # UPDATE
 
 def update():
-    global game_paused, bg_x, bg_y
+    global game_paused, bg_x, bg_y, controller_mode
 
     if controller_mode: # trigger controller response
         buttons_down, buttons_up = check_buttons_down(), check_buttons_up()
         on_button_down(buttons_down)
         on_button_up(buttons_up)
         pg.mouse.set_visible(False) # hide cursor in controller mode by default
+        if pg.joystick.get_count() != 1:
+            controller_mode = False
 
     if menu:
         # Background movement
@@ -1084,8 +1096,8 @@ def update():
         pg.mouse.set_visible(True) # show cursor in menus
         
     else:
-        bg_x += bg_dx
-        bg_y += bg_dy
+        bg_x += bg_dx * player.time_mod
+        bg_y += bg_dy * player.time_mod
 
         if game_paused:
             player.input = False
@@ -1248,7 +1260,7 @@ def update():
             enemy_attack.animate()
             explode = False
 
-            if enemy_attack.collide_pixel(player):
+            if enemy_attack.collide_pixel(player) and player.alive:
                 explode = True
                 if player.alive:
                     player.die()
@@ -1274,7 +1286,7 @@ def update():
         # Enemy Collision
 
         for enemy in current_scene.enemies:
-            if enemy.hitbox.colliderect(player.hitbox) and 'die' not in enemy.image: # touching an enemy will kill the player
+            if enemy.hitbox.colliderect(player.hitbox) and player.alive: # touching an enemy will kill the player
                 player.die()
             
             if not (0 <= enemy.hitbox.centerx <= WIDTH and 0 <= enemy.hitbox.centery <= HEIGHT):
