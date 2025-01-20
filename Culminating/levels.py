@@ -1,7 +1,7 @@
 # Level Design File
 # Dedicated program for initializing game levels
 # Noah Verdon
-# Last Edited: January 19, 2024
+# Last Edited: January 20, 2024
 
 
 # SETUP
@@ -77,7 +77,7 @@ class Text:
                 break
 
 
-# LEVEL DESIGN
+# LEVEL DESIGN (some extra decorations could be added to later levels and scenes) (TODO maybe later)
 
 # LEVEL 1
 
@@ -227,7 +227,7 @@ Scene(
 )
 
 
-# LEVEL 2 # IDEA: vertical opening into a room that is just a pit of spikes
+# LEVEL 2
 
 Scene(
     1, 0, 0, [
@@ -553,7 +553,7 @@ def tutorial_controller():
     Text(0, 3, 1, 'KILL. THEM. ALL.', 19.5, 6.5, 'RED')
 
 
-# LEVEL 2 etc. TODO
+# LEVEL 2, 3, 4 (TODO maybe later)
 
 Text(1, 0, 0, '', 20, 4)
 

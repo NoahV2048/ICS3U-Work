@@ -1,7 +1,10 @@
 # ULTRAKOOL
-# A really cool combat platformer game
+# A really cool combat platformer game (ICS3U Culminating Project)
 # Noah Verdon
-# Last Edited: January 17, 2024
+# Last Edited: January 20, 2024
+
+# ALL ASSETS ARE LISTED UNDER A SEPARATE GOOGLE DOC
+# All Music is Original
 
 import pgzrun, os, random, sys, pygame as pg
 from pgzhelper import *
@@ -1210,7 +1213,6 @@ def update():
 
         # Player Attacks
 
-        outer_loop_break = False
         for attack in current_scene.attacks:
             attack.move_in_direction(15 * player.time_mod)
             attack.scale = 1.5
@@ -1236,7 +1238,6 @@ def update():
             if explode:
                 current_scene.attacks.remove(attack)
                 create_explosion(attack.x + 10, attack.y)
-
 
         # Enemy Attacks
     
@@ -1266,8 +1267,9 @@ def update():
                 create_explosion(enemy_attack.x + 10, enemy_attack.y)
         
         for saved_attack in saved_attacks: # this ensures both attacks are destroyed when a collision occurs
-            current_scene.enemy_attacks.remove(saved_attack)
-            create_explosion(enemy_attack.x + 10, saved_attack.y)
+            if saved_attack in current_scene.enemy_attacks:
+                current_scene.enemy_attacks.remove(saved_attack)
+                create_explosion(enemy_attack.x + 10, saved_attack.y)
 
         # Enemy Collision
 
@@ -1290,6 +1292,7 @@ def update():
             level_end()
         
         if level_beat:
+            player.switch_animation('idle')
             player.input, player.gravity = False, False
             game_paused = False
 
