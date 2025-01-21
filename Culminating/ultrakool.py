@@ -567,7 +567,7 @@ def touch_ground(entity):
     '''Change various attributes when touching the ground.'''
     entity.dx, entity.dy = 0, 0
 
-    if entity == player: # resets some player attributes
+    if type(entity) == Player: # resets some player attributes
         entity.can_boost = True
         entity.can_jump = True
         entity.gravity = True
@@ -594,7 +594,7 @@ def movement(entity):
             if counter > 64:
                 break
             
-            if entity == player: # separate logic for player and enemies
+            if type(entity) == Player: # separate logic for player and enemies
                 if (entity.hitbox.top + 15 < tile.top) and 'u' in tile.image: # top + 15 is the minimum height for auto-jumping
                     entity.hitbox.y -= 1
                     touch_ground(entity)
@@ -617,7 +617,7 @@ def movement(entity):
         while tile.colliderect(entity.hitbox): # left and right
             counter += 1
             if counter > 64:
-                if entity == player:
+                if type(entity) == Player:
                     player.respawn()
                 else:
                     entity.die()
@@ -626,12 +626,12 @@ def movement(entity):
 
             if entity.hitbox.left < tile.right and 'r' in tile.image.replace('water', ''):
                 entity.hitbox.x += 1
-                if entity == player and player.alive:
+                if type(entity) == Player and player.alive:
                     entity.dash_cancel()
 
             elif entity.hitbox.right > tile.left and 'l' in tile.image.replace('tile', ''):
                 entity.hitbox.x -= 1
-                if entity == player and player.alive:
+                if type(entity) == Player and player.alive:
                     entity.dash_cancel()
 
     if down_boost:
@@ -641,7 +641,7 @@ def movement(entity):
 
     for hazard in hazards:
         if hazard.colliderect(entity.hitbox): # hazard collision kills the entity
-            if entity != player:
+            if type(entity) != Player:
                 if 'water' not in hazard.image and entity.can_hurt: # this allows enemies to survive on water
                     entity.die()
             elif entity.alive:
@@ -651,7 +651,7 @@ def movement(entity):
         while hazard.colliderect(entity.hitbox) and 'water' in hazard.image:
             counter += 1
             if counter > 64:
-                if entity == player:
+                if type(entity) == Player:
                     entity.respawn()
                 else:
                     entity.die()
@@ -1264,6 +1264,7 @@ def update():
                 explode = True
                 if player.alive:
                     player.die()
+                    break # this is important otherwise it crahses in instant respawn mode
 
             other_enemies = list(set(current_scene.enemies) - {enemy_attack.origin}) # list(set) is a little ugly but works for list subtraction
             if enemy_attack.collidelistall_pixel(tiles_clip + tiles_animate + other_enemies): # enemy attacks explode after hitting an enemy they did not originate from
@@ -1279,7 +1280,7 @@ def update():
                 create_explosion(enemy_attack.x + 10, enemy_attack.y)
         
         for saved_attack in saved_attacks: # this ensures both attacks are destroyed when a collision occurs
-            if saved_attack in current_scene.enemy_attacks:
+            if saved_attack in current_scene.enemy_attacks: # could crash otherwise
                 current_scene.enemy_attacks.remove(saved_attack)
                 create_explosion(enemy_attack.x + 10, saved_attack.y)
 
