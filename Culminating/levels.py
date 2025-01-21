@@ -1,7 +1,7 @@
 # Level Design File
 # Dedicated program for initializing game levels
 # Noah Verdon
-# Last Edited: January 20, 2024
+# Last Edited: January 21, 2025
 
 
 # SETUP
@@ -12,7 +12,7 @@ tile_unicode_dict = { # mapping of various Unicode characters
     'o': 'trigger_overclock',
     'a': 'trigger_attack',
     'w': 'water_0',
-    'W': 'warning_0', # removed
+    'W': 'warning_0',
     'F': 'spike_u_0',
     'G': 'spike_l_0',
     'H': 'spike_r_0',

@@ -1,7 +1,7 @@
 # ULTRAKOOL
 # A really cool combat platformer game (ICS3U Culminating Project)
 # Noah Verdon
-# Last Edited: January 20, 2024
+# Last Edited: January 21, 2025
 
 # ALL ASSETS ARE LISTED UNDER A SEPARATE GOOGLE DOC
 # All Music is Original
@@ -1212,7 +1212,7 @@ def update():
 
             # Automatic movement
             if enemy.can_hurt and enemy.can_attack:
-                if enemy.hitbox.left - 32 < player.hitbox.centerx < enemy.hitbox.right + 32 and enemy.hitbox.top - 128 < player.hitbox.centery < enemy.hitbox.bottom + 32:
+                if enemy.hitbox.left - 30 < player.hitbox.centerx < enemy.hitbox.right + 30 and enemy.hitbox.top - 128 < player.hitbox.centery < enemy.hitbox.bottom + 32:
                     enemy.attack()
                 elif enemy.hitbox.left - 960 < player.hitbox.centerx < enemy.hitbox.right + 960 and enemy.hitbox.top - 768 < player.hitbox.centery < enemy.hitbox.bottom + 512:
                     if random.randint(1, (120 if hard_mode else 180)) == 77:
@@ -1409,7 +1409,7 @@ def draw():
             # HUD and Debug
             hud_timer.draw()
             time_elapsed = time.time() - level_start_time - level_subtracted_time
-            screen.draw.text(f'{int(time_elapsed // 60)}:{time_elapsed % 60:.3f}', center=hud_timer.center, fontname='vcr_ocd_mono', fontsize=32)
+            screen.draw.text(f'{int(time_elapsed // 60)}:{time_elapsed % 60:0>6.3f}', center=hud_timer.center, fontname='vcr_ocd_mono', fontsize=32)
 
             hud_box_overclock.draw()
             screen.draw.text(f'OVERCLOCKING: {int((player.time_mod - 0.2) / -0.8 * 100) + 100}%', center=hud_box_overclock.center, fontname='vcr_ocd_mono', fontsize=20)
